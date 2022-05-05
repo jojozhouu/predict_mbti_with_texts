@@ -7,17 +7,6 @@ from typing import Tuple
 import boto3
 import re
 
-import py7zr
-
-
-def extract_7z(filepath, target_path):
-    """Extract 7z-compressed file to target directory"""
-
-    # QUESTION, is the working dir when running from run.py project folder or src folder?
-    with py7zr.SevenZipFile('data/raw/raw_500word_processed.7z', mode='r') as raw_500word:
-        raw_500word.extractall('data/raw/')
-    # TODO, add logging
-
 
 def parse_s3(s3path: str) -> Tuple[str, str]:  # TODO: NEED TO TEST THIS
     """Parse s3 path. Source: https://github.com/MSIA/2022-msia423/blob/main/aws-s3/s3.py """
