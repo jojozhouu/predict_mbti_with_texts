@@ -9,6 +9,8 @@ from typing import Tuple
 import boto3
 import re
 
+from botocore.exceptions import PartialCredentialsError, NoCredentialsError, ClientError
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,24 +37,33 @@ def upload_file_to_s3(local_path: str, s3path: str) -> None:
                             aws_access_key_id=os.environ.get(
                                 "AWS_ACCESS_KEY_ID"),
                             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"))
-        # TODO logger.info("AWS S3 bucket connected.")
-    except botocore.exceptions.PartialCredentialsError as pe:  # QUESTION except here or after upload
-        # TODO logger.error("Invalid AWS credentials")
-        raise pe
-    except botocore.exceptions.NoCredentialsError as ce:  # check if it is this error
-        # TODO logger.error("""No AWS credentials detected in env. Please provide credentials via AWS_ACCESS_KEY_ID and
-        # AWS_SECRET_ACCESS_KEY env variables""")
-        raise ce
+        logger.info("AWS S3 bucket connected.")
+    except PartialCredentialsError as pe:  # QUESTION except here or after upload
+        logger.error("Invalid AWS credentials")
+        sys.exit(1)
+    except NoCredentialsError as ce:  # check if it is this error
+        logger.error("""No AWS credentials detected in env. Please provide credentials via AWS_ACCESS_KEY_ID and
+        AWS_SECRET_ACCESS_KEY env variables""")
+        sys.exit(1)
 
     bucket = s3.Bucket(s3bucket)
 
+    # Check if the file already exists in S3. If not, upload the file.
     try:
-        bucket.upload_file(local_path, s3_just_path)
-        logger.info('Data uploaded from %s to %s', local_path, s3path)
-    except boto3.exceptions.S3UploadFailedError as se:
-        logger.error(
-            """Upload failed. Please check if the file exists and if the S3 path is correct. %s""", se)
-        sys.exit(1)
+        s3.Object(s3bucket, s3_just_path).load()
+    except ClientError as e:
+        logger.info("File does not exist in S3. Uploading file to S3.")
+
+        # Upload the file
+        try:
+            bucket.upload_file(local_path, s3_just_path)
+            logger.info('Data uploaded from %s to %s', local_path, s3path)
+        except boto3.exceptions.S3UploadFailedError as se:
+            logger.error(
+                """Upload failed. Please check if the file exists and if the S3 path is correct. %s""", se)
+            sys.exit(1)
+    else:
+        logger.info("File already exists in S3. Skipping upload.")
 
 
 def download_file_from_s3(local_path: str, s3path: str) -> None:
@@ -68,10 +79,10 @@ def download_file_from_s3(local_path: str, s3path: str) -> None:
                                 "AWS_ACCESS_KEY_ID"),
                             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"))
         logger.info("S3 bucket %s connected.", s3bucket)
-    except botocore.exceptions.PartialCredentialsError as pe:  # QUESTION except here or after upload
+    except PartialCredentialsError as pe:  # QUESTION except here or after upload
         logger.error("Invalid AWS credentials")
         raise pe
-    except botocore.exceptions.NoCredentialsError as ce:  # check if it is this error
+    except NoCredentialsError as ce:  # check if it is this error
         logger.error("""No AWS credentials detected in env. Please provide credentials via AWS_ACCESS_KEY_ID and
         # AWS_SECRET_ACCESS_KEY env variables""")
         raise ce
@@ -80,7 +91,7 @@ def download_file_from_s3(local_path: str, s3path: str) -> None:
 
     try:
         bucket.download_file(s3_just_path, local_path)
-    except botocore.exceptions.NoCredentialsError as ne:
+    except NoCredentialsError as ne:
         logger.error(
             'Please provide AWS credentials via AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env variables.')
         raise ne

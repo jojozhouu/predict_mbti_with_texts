@@ -25,7 +25,7 @@ class Posts(Base):
 
     person_id = Column(Integer, primary_key=True)
     type = Column(String(4), unique=False, nullable=False)
-    posts = Column(TEXT, unique=True, nullable=False)
+    posts = Column(TEXT, unique=False, nullable=False)
 
     def __repr__(self):
         return f"<posts first 10 letter {self.posts[:10]}>"
@@ -38,20 +38,17 @@ def create_db(engine_string: str) -> None:
     Returns:
         None
     """
-
     # Connect to RDS
-    if not database_exists(engine_string):
-        engine = sqlalchemy.create_engine(engine_string)
-        try:
-            # Create schema
-            Posts.metadata.create_all(engine)
-            logger.info("Database created.")
-        except OperationalError as e:
-            logger.error(""" Could not create database. Pleases make sure VPN is 
-            connected and RDS URI is correct. %s""", e)
-            sys.exit(1)
-    else:
-        logger.info("Database already exists")
+
+    engine = sqlalchemy.create_engine(engine_string)
+    try:
+        # Create schema
+        Posts.metadata.create_all(engine)
+        logger.info("Database created.")
+    except OperationalError as e:
+        logger.error(""" Could not create database. Pleases make sure VPN is 
+        connected and RDS URI is correct. %s""", e)
+        sys.exit(1)
 
 
 def delete_db(engine_string: str) -> None:
@@ -132,7 +129,7 @@ class PostManager:
 
         logger.info("Ingesting data")
         try:
-            f = open(file, 'r', encoding='utf-8')
+            f = open(file, 'r', encoding='latin-1')
         except FileNotFoundError as fe:
             logger.error("Could not find file {}".format(file))
             sys.exit(1)
@@ -141,9 +138,10 @@ class PostManager:
             next(f)
             cnt = 0
             for line in f:
-                type, post = line.split(",", 1)
+                id, type, post = line.split(",", 2)
                 try:
-                    self.session.add(Posts(type=type, posts=post))
+                    self.session.add(
+                        Posts(person_id=id, type=type, posts=post))
                 except SQLAlchemyError as e:
                     logger.error(
                         """An error occur when adding records to the session.
@@ -151,8 +149,8 @@ class PostManager:
                     self.session.rollback()
                 else:
                     cnt += 1
-                    logger.debug(
-                        "Added record (type: %s, post: %s ...) to the session", type, post[:10])
+                    # logger.debug(
+                    #     "Added record (type: %s, post: %s ...) to the session", type, post[:10])
 
             logger.info("Added %d records to the session", cnt)
 
@@ -165,13 +163,15 @@ class PostManager:
             self.session.commit()
         except IntegrityError as e:
             logger.error("""The database already contains the records you are trying to insert.
-                             Transaction rolled back.
-                              Please truncate the table before attempting again. Error: %s""", e)
+            Transaction rolled back. Please truncate the table before attempting again. """)
             self.session.rollback()
         except OperationalError as e:
             logger.error("""Could not find the table. Transaction rolled back.
                               Please make sure VPN is connected. Error: %s""", e)
             self.session.rollback()
+        except ProgrammingError as e:
+            logger.error("""Could not find the table. Transaction rolled back. 
+            Please make sure the table exists.""")
         except Exception as e:
             logger.error("Exiting due to error: %s", e)
             self.session.rollback()
