@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="static/basic.css" rel="stylesheet">
+</head>
+
+<body>
+    <h2>
+         <a> Put in your words here and find out your MBTI type.</a>
+    </h2>
+
+    <h3>
+      <a href = "{{ url_for('home') }}"> Back to homepage </a>
+     </h3>
+
+    <hr/>
+      <form action="{{ url_for('show_result') }}" method=post class=input_text>
+      <dl>
+        <input type=text size=50 name=text placeholder="Texts here">
+        <input type=submit value="Predict">
+      </dl>
+    </form>
+
+</body>
+</html>

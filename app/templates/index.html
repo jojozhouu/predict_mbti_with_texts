@@ -6,38 +6,18 @@
 </head>
 
 <body>
+    <h1>
+         <a> Find out your MBTI type with what you said!</a>
+    </h1>
+
     <h3>
-         <a href = "{{ url_for('index') }}">Penny Lane Music Recommender</a>
+      <a href="/input_text" role="button">Find out now! &raquo;</a>
     </h3>
 
-    <hr/>
-    <table>
-         <thead>
-            <tr>
-               <th>Title</th>
-               <th>Artist</th>
-               <th>Album</th>
-            </tr>
-         </thead>
-
-         <tbody>
-            {% for track in tracks %}
-               <tr>
-                   <td>{{ track.title }}</td>
-                   <td>{{ track.artist }}</td>
-                   <td>{{ track.album }}</td>
-               </tr>
-            {% endfor %}
-         </tbody>
-      </table>
-      <form action="{{ url_for('add_entry') }}" method=post class=add-entry>
-      <dl>
-        <input type=text size=15 name=title placeholder="Title">
-        <input type=text size=15 name=artist placeholder="Artist">
-        <input type=text size=15 name=album placeholder="Album">
-        <input type=submit value=Add>
-      </dl>
-    </form>
+    <div>
+      <a href="/learn_more"> Learn more about this page </a>
+    </div>
 
 </body>
+
 </html>
