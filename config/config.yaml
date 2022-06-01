@@ -1,0 +1,40 @@
+random_seed: 100
+clean:
+  check_dl_nltk_data:
+    download_dir: data/nltk
+  save_clean_data_to_file:
+    clean_data_output_filename: clean_posts
+  save_stopwords_to_file:
+    stopwords_output_dir: data/stopwords
+    stopwords_output_filename: stopwords
+train:
+  train_wrapper:
+    posts_colname: posts
+  read_stopwords:
+    stopwords_path: data/stopwords
+  split_data:
+    test_size: 0.2
+    random_state: 100
+  save_split_to_files:
+    train_filename: train
+    test_filename: test
+    split_output_dir: output/train_test_split
+  create_fit_vectorizer:
+    max_features: 5000
+  train_logit:
+    C: 0.5
+  save_model_to_file:
+    model_output_dir: output/model
+
+predict:
+  predict_wrapper:
+    new_text_path: output/train_test_split/X_test.csv
+  save_ypred_to_files:
+    y_pred_output_dir: output/predictions
+
+evaluate:
+  retrieve_ytest_ypred:
+    y_test_path: output/train_test_split/y_test.csv
+    ypred_bin_path: output/predictions/ypred_bin.txt
+  save_metrics_to_file:
+    metrics_output_filename: metrics
