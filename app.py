@@ -1,9 +1,16 @@
+from datetime import datetime
 import logging.config
+import os
 import sqlite3
 import traceback
 
 import sqlalchemy.exc
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, session, url_for
+from flask_session import Session
+from config.flaskconfig import SECRET_KEY, SESSION_TYPE
+
+from src.modeling import clean, predict
+from src import manage_rds_db
 
 # For setting up the Flask-SQLAlchemy database session
 from src.manage_rds_db import PostManager
@@ -14,6 +21,11 @@ app = Flask(__name__, template_folder="app/templates",
 
 # Configure flask app from flask_config.py
 app.config.from_pyfile('config/flaskconfig.py')
+
+# Set up flask session
+SESSION_TYPE = app.config["SESSION_TYPE"]
+SECRET_KEY = app.config["SECRET_KEY"]
+Session(app)
 
 # Define LOGGING_CONFIG in flask_config.py - path to config file for setting
 # up the logger (e.g. config/logging/local.conf)
@@ -29,6 +41,28 @@ logger.debug(
 
 # Initialize the database session
 track_manager = PostManager(app)
+
+# Retrieve the path to the folder containing 4 trained model object
+MODEL_FOLDER = app.config["MODEL_FOLDER"]
+
+# Retrieve the path to the vectorizer object
+VECTORIZER_PATH = app.config["VECTORIZER_PATH"]
+
+# Retrieve the path to the nltk packages
+NLTK_DATA_PATH = app.config["NLTK_DATA_PATH"]
+
+# Specify paths to output clean data and stopwords
+# CLEAN_DATA_PATH = app.config["CLEAN_DATA_PATH"]
+# CLEAN_DATA_FILENAME = app.config["CLEAN_DATA_FILENAME"]
+# STOPWORDS_PATH = app.config["STOPWORDS_PATH"]
+# STOPWORDS_FILENAME = app.config["STOPWORDS_FILENAME"]
+
+# # Retrieve S3 path to save clean data to, if SAVE_OUTPUT_TO_S3 is True
+# SAVE_OUTPUT_TO_S3 = app.config["SAVE_OUTPUT_TO_S3"]
+# S3_PATH = app.config["S3_PATH"]
+# CLEAN_DATA_PATH = app.config["CLEAN_DATA_PATH"]
+
+# S3 path to save clean data to
 
 
 @app.route('/')
@@ -78,29 +112,14 @@ def input_text():
     Returns:
         redirect to result page
     """
-    # Get the text from the text box
-    text = request.form.get('text')
-    # TODO call preprocess and predict functions
-    return render_template('search.html')
-    # try:
-    #     track_manager.add_track(artist=request.form['artist'],
-    #                             album=request.form['album'],
-    #                             title=request.form['title'])
-    #     logger.info("New song added: %s by %s", request.form['title'],
-    #                 request.form['artist'])
-    #     return redirect(url_for('index'))
-    # except sqlite3.OperationalError as e:
-    #     logger.error(
-    #         "Error page returned. Not able to add song to local sqlite "
-    #         "database: %s. Error: %s ",
-    #         app.config['SQLALCHEMY_DATABASE_URI'], e)
-    #     return render_template('error.html')
-    # except sqlalchemy.exc.OperationalError as e:
-    #     logger.error(
-    #         "Error page returned. Not able to add song to MySQL database: %s. "
-    #         "Error: %s ",
-    #         app.config['SQLALCHEMY_DATABASE_URI'], e)
-    #     return render_template('error.html')
+    if request.method == 'POST':
+        # Get the text from the text box
+        text = request.form.get('text')
+        session["text"] = text
+
+        return redirect(url_for('show_result'))
+
+    return render_template("search.html")
 
 
 @app.route("/result", methods=['GET', 'POST'])
@@ -110,7 +129,39 @@ def show_result():
     Returns:
         Rendered html template
     """
-    return render_template('result.html')
+    # Get the text from the /input_text route
+    try:
+        text = session.get('text', None)
+    except TypeError:
+        logger.error("Failed to detect text entered.")
+        return render_template('error.html')
+
+    # Process the text
+    cleaned_text = clean.clean_wrapper(raw_data=text,
+                                       clean_data_output_dir=None,
+                                       is_new_data=True,
+                                       save_output=False,
+                                       **NLTK_DATA_PATH)
+
+    # Predict with pre-trained model object
+    pred_result = predict.predict_wrapper(model_folder_path=MODEL_FOLDER,
+                                          new_text_path=cleaned_text,
+                                          vectorizer_path=VECTORIZER_PATH,
+                                          y_pred_output_dir=None,
+                                          is_string=True,
+                                          save_output=False)
+
+    # Retrieve prediction results and send to template for display
+    result_I = pred_result["I"].values[0]
+    result_S = pred_result["S"].values[0]
+    result_F = pred_result["F"].values[0]
+    result_J = pred_result["J"].values[0]
+
+    return render_template('result.html',
+                           result_I=result_I,
+                           result_S=result_S,
+                           result_F=result_F,
+                           result_J=result_J)
 
 
 @app.route('/learn_more')

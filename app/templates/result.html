@@ -7,8 +7,15 @@
 
 <body>
     <h1>
-      <a> Your top 3 MBTI types are ...</a>
+      <a> Your MBTI type is ...</a>
     </h1>
+
+    <body>
+      <a> Predicted Probabiliy for I (vs. E) = {{result_I}}</a>
+      <br><a> Predicted Probabiliy for S (vs. N) = {{result_S}}</a>
+      <br><a> Predicted Probabiliy for F (vs. T) = {{result_F}}</a>
+      <br><a> Predicted Probabiliy for J (vs. P) = {{result_J}}</a>
+    </body>
 
     <h3>
          <a href = "{{ url_for('home') }}"> Try again (back to homepage) </a>
