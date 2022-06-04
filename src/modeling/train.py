@@ -156,6 +156,7 @@ def split_data(data: pd.DataFrame,
 
 def save_split_to_files(train: pd.DataFrame,
                         test: pd.DataFrame,
+                        split_output_dir: str,
                         **kwargs_save_split: dict) -> None:
     """
     Save the training and test sets to files.
@@ -181,27 +182,27 @@ def save_split_to_files(train: pd.DataFrame,
     """
     # Validate output_dir exists. If not, create a new directory at
     # output_dir.
-    if not os.path.exists(kwargs_save_split["split_output_dir"]):
-        logger.warning("Output directory does not exist: %s. \
-            New directory will be created.", kwargs_save_split["split_output_dir"])
-        os.makedirs(kwargs_save_split["split_output_dir"])
+    if not os.path.exists(split_output_dir):
+        logger.warning("Output directory does not exist: %s. "
+                       "New directory will be created.", split_output_dir)
+        os.makedirs(split_output_dir)
         logger.info("Created directory: %s",
-                    kwargs_save_split["split_output_dir"])
+                    split_output_dir)
 
     # Save files to specified path with specified names
     try:
         train.to_csv(os.path.join(
-            kwargs_save_split["split_output_dir"],
+            split_output_dir,
             kwargs_save_split["train_filename"])+".csv", index=False)
         test.to_csv(os.path.join(
-            kwargs_save_split["split_output_dir"],
+            split_output_dir,
             kwargs_save_split["test_filename"]) + ".csv", index=False)
     except (IOError, OSError) as e:
         logger.error("Error saving files: %s", e)
         raise e
 
     logger.info("Saved training and test sets to directory: %s.",
-                kwargs_save_split["split_output_dir"])
+                split_output_dir)
 
 
 def create_fit_vectorizer(train_posts: pd.Series, sw: list, **kwargs_tfidf_vec) -> TfidfVectorizer:
@@ -304,7 +305,7 @@ def train_logit(train_posts: np.ndarray,
 
 def save_model_to_file(logit: LogisticRegression,
                        model_output_filename: str,
-                       **kwargs_save_model: dict) -> None:
+                       model_output_dir: str) -> None:
     """
     Save the model object to a pickle file.
 
@@ -322,10 +323,9 @@ def save_model_to_file(logit: LogisticRegression,
     """
     # Validate model_output_dir exists. If not, create a new directory at
     # model_output_dir.
-    model_output_dir = kwargs_save_model["model_output_dir"]
     if not os.path.exists(model_output_dir):
-        logger.warning("Output directory does not exist: %s. \
-            New directory will be created.", model_output_dir)
+        logger.warning("Output directory does not exist: %s. "
+                       "New directory will be created.", model_output_dir)
         os.makedirs(model_output_dir)
         logger.info("Created directory: %s",
                     model_output_dir)
@@ -343,7 +343,52 @@ def save_model_to_file(logit: LogisticRegression,
     logger.info("Saved model to file: %s.pkl", filepath)
 
 
+def save_vectorizer_to_file(vectorizer: TfidfVectorizer,
+                            vectorizer_output_dir: str,
+                            **kwargs_save_vectorizer: dict) -> None:
+    """
+    Save the vectorizer object to a pickle file.
+
+    Args:
+        vectorizer (:obj:`TfidfVectorizer`): TfidfVectorizer object to be saved.
+        vectorizer_output_dir (`str`): Output directory to save the vectorizer.
+        **kwargs_save_vectorizer (`dict`): Dictionary `save_vectorizer_to_file` defined
+            - vectorizer_filename (`str`): Name of the saved vectorizer file.
+
+    Returns:
+        None
+
+    Raises:
+        IOError, OSError: If the output directory is not accessible.
+    """
+    vectorizer_filename = kwargs_save_vectorizer["vectorizer_filename"]
+
+    # Validate vectorizer_output_dir exists. If not, create a new directory at
+    # vectorizer_output_dir.
+    if not os.path.exists(vectorizer_output_dir):
+        logger.warning("Output directory does not exist: %s. \
+            New directory will be created.", vectorizer_output_dir)
+        os.makedirs(vectorizer_output_dir)
+        logger.info("Created directory: %s",
+                    vectorizer_output_dir)
+
+    # Save vectorizer as pickle file to specified path with specified name
+    filepath = os.path.join(
+        vectorizer_output_dir, vectorizer_filename)
+    try:
+        with open(filepath + ".pkl", "wb") as f:
+            pickle.dump(vectorizer, f)
+    except (IOError, OSError) as e:
+        logger.error(
+            "Error saving vectorizer as pickle file. Please check permissions. %s", e)
+        raise e
+    logger.info("Saved vectorizer to file: %s.pkl", filepath)
+
+
 def train_wrapper(clean_data_path: str,
+                  model_output_dir: str,
+                  vectorizer_output_dir: str,
+                  split_output_dir: str,
                   **kwargs_train) -> None:
 
     logger.info("Start train.py pipeline.")
@@ -356,12 +401,17 @@ def train_wrapper(clean_data_path: str,
 
     # split data into train and test and save to given path
     train, test = split_data(clean_data, **kwargs_train["split_data"])
-    save_split_to_files(train, test, **kwargs_train["save_split_to_files"])
+    save_split_to_files(train, test, split_output_dir, **
+                        kwargs_train["save_split_to_files"])
 
     # create TF-IDF vectorizer and fit on training data
     posts_colname = kwargs_train["train_wrapper"]["posts_colname"]
     vectorizer = create_fit_vectorizer(
         train[posts_colname], stopwords, **kwargs_train["create_fit_vectorizer"])
+
+    # Save vectorizer to file
+    save_vectorizer_to_file(
+        vectorizer, vectorizer_output_dir, **kwargs_train["save_vectorizer_to_file"])
 
     # transform psosts column with vectorizer
     train_posts = vectorizer.transform(train[posts_colname]).toarray()
@@ -380,6 +430,6 @@ def train_wrapper(clean_data_path: str,
 
         # Save fitted model to file
         save_model_to_file(
-            logit, f"logit_{col}=1", **kwargs_train["save_model_to_file"])
+            logit, f"logit_{col}=1", model_output_dir)
 
     logger.info("train.py pipeline completed.")

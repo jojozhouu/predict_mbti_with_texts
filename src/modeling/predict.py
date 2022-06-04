@@ -7,21 +7,49 @@ from typing import Tuple
 import pandas as pd
 from pandas.errors import ParserError
 from sklearn.linear_model import LogisticRegression
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 logger = logging.getLogger(__name__)
 
-# Definie a custom exception class for incorrect number of files
-
 
 class IncorrectNumberOfFilesError(Exception):
+    """Definie a custom exception class for incorrect number of files"""
     pass
-
-# Definie a custom exception class for incorrect filename
 
 
 class IncorrectFilenameError(Exception):
+    """Define a custom exception class for incorrect filename"""
     pass
+
+
+def read_new_text(text_path: str) -> str:
+    """
+    Read the new text from the given .csv file returned from clean step.
+
+    Args:
+        text_path (`str`): Path to the csv file
+
+    Returns:
+        The text.
+
+    Raises:
+        FileNotFoundError: If the text file does not exist.
+        ParserError: If the text file fails to parse.
+    """
+    try:
+        logger.info("Reading new text from file: %s", text_path)
+        text = pd.read_csv(text_path, encoding="ISO-8859-1")
+    except FileNotFoundError as e:
+        logger.error("File not found: %s", text_path)
+        raise e
+    except ParserError as e:
+        logger.error("Error parsing text file: %s", text_path)
+        raise e
+    else:
+        logger.info("New text read.")
+
+    return text
 
 
 def validate_model_folder(model_file_folder: str) -> None:
@@ -104,6 +132,34 @@ def read_model_from_path(model_file_path: str) -> LogisticRegression:
     return model
 
 
+def read_vectorizer_from_path(vectorizer_path: str) -> TfidfVectorizer:
+    """
+    Read the vectorizer from local pickle file.
+
+    Args:
+        vectorizer_path (`str`): Path to the vectorizer file saved in previous train step.
+    """
+    # Load vectorizer saved in previous step
+    try:
+        logger.info("Reading vectorizer from pickle file: %s", vectorizer_path)
+        vectorizer_file = open(vectorizer_path, "rb")
+    except FileNotFoundError as e:
+        logger.error("File not found: %s", vectorizer_path)
+        raise e
+    else:
+        try:
+            vectorizer = pickle.load(vectorizer_file)
+        except (EOFError, pickle.UnpicklingError) as e:
+            logger.error("Error reading model from pickle file: %s",
+                         vectorizer_file)
+            raise e
+        else:
+            logger.info("Vectorizer object loaded.")
+        finally:
+            vectorizer_file.close()
+    return vectorizer
+
+
 def predict_logit(model: LogisticRegression, new_text: str) -> list:
     """
     Predict the class probabilities on the new text.
@@ -121,8 +177,7 @@ def predict_logit(model: LogisticRegression, new_text: str) -> list:
     """
     # Predict the probabilities of the new text belonging to each class
     try:
-        logger.info("Predicting class probabilities on the new text: %s...",
-                    new_text[:10])
+        logger.info("Predicting class probabilities on the new text: %s...")
         y_pred_prob = model.predict_proba(new_text)[:, 1]
     except ValueError as e:
         logger.error("Error predicting class probabilities on: %s",
@@ -135,8 +190,7 @@ def predict_logit(model: LogisticRegression, new_text: str) -> list:
 
     # Predict the class of the new text
     try:
-        logger.info("Predicting class on the new text: %s...",
-                    new_text[:10])
+        logger.info("Predicting class on the new text: %s...")
         y_pred_bin = model.predict(new_text)
     except ValueError as e:
         logger.error("Error predicting class on: %s",
@@ -152,7 +206,7 @@ def predict_logit(model: LogisticRegression, new_text: str) -> list:
 
 def save_ypred_to_files(y_pred_df: list,
                         y_pred_filename: str,
-                        **kwargs_save_ypred) -> None:
+                        y_pred_output_dir: str) -> None:
     """
     Save the predictions probabilities and classes to files.
 
@@ -175,7 +229,6 @@ def save_ypred_to_files(y_pred_df: list,
 
     # Validate ypred_output_dir exists. If not, create a new directory at
     # ypred_output_dir.
-    y_pred_output_dir = kwargs_save_ypred["y_pred_output_dir"]
     if not os.path.exists(y_pred_output_dir):
         logger.warning("Output directory does not exist: %s. \
         Creating new directory.", y_pred_output_dir)
@@ -199,9 +252,8 @@ def save_ypred_to_files(y_pred_df: list,
                 output_path)
 
 
-def predict_wrapper(model_file_folder: str, new_text: str,
-                    y_pred_filename: str,
-                    **kwargs_predict) -> None:
+def predict_wrapper(model_folder_path: str, new_text_path: str, vectorizer_path: str,
+                    y_pred_output_dir: str, is_string: bool, save_output: bool, **kwargs_predict) -> None:
     """
     Wrapper function to predict the class probabilities on the new text.
 
@@ -225,29 +277,60 @@ def predict_wrapper(model_file_folder: str, new_text: str,
     """
     logger.info("Starting predict.py pipeline")
 
-    # Create a dataframe to store all 4 predictions
-    result = pd.DataFrame(columns=["dimension", "probability", "class"])
+    # Create a dataframe to store all 4 predictions separately for later evaluation
+    class_result = pd.DataFrame(columns=["probability", "class"])
+
+    # Create a dataframe for all predictions for new text prediction
+    result_all = pd.DataFrame(columns=["I", "S", "F", "J"])
 
     # Validate model files in the given folder
-    validate_model_folder(model_file_folder)
+    validate_model_folder(model_folder_path)
+
+    # Read the new text to be predicted
+    if not is_string:
+        new_text = read_new_text(new_text_path)
+    else:
+        new_text = new_text_path
+
+    # Vectorize the new text
+    vectorizer = read_vectorizer_from_path(vectorizer_path)
+    if not is_string:
+        try:
+            posts = new_text[kwargs_predict["posts_colname"]].tolist()
+        except KeyError as ke:
+            logger.error("Errors reading posts column. Please check name of the target "
+                         "column in dataset matches with what's been defined in config: %s", ke)
+        raise ke
+    else:
+        posts = new_text
+
+    # try:
+    new_text_vectorized = vectorizer.transform([posts]).toarray()
+    # TODO except KeyError as ke:
 
     # Iterate over all the model files in the model_file_folder
-    for model_filename in os.listdir(model_file_folder):
+    for model_filename in os.listdir(model_folder_path):
         # Get the model file path
-        model_file_path = os.path.join(model_file_folder, model_filename)
+        model_file_path = os.path.join(model_folder_path, model_filename)
 
         # Read the model object from the pickle file
         model = read_model_from_path(model_file_path)
 
         # Predict the class probabilities on the new text
-        y_pred_prob, y_pred_bin = predict_logit(model, new_text)
+        y_pred_prob, y_pred_bin = predict_logit(model, new_text_vectorized)
 
         # Save to result dataframe
         # model_filename[6] is one of [I, S, F, J]
         # y_pred_prob[1] is the probability of belonging to class 1
-        result.loc[len(result.index)] = [
-            model_filename[6], y_pred_prob[1], y_pred_bin]
+        class_result["probability"] = y_pred_prob
+        class_result["class"] = y_pred_bin
+        result_all[model_filename[6]] = y_pred_prob
 
-    # Save the predictions to files
-    save_ypred_to_files(result,
-                        y_pred_filename, **kwargs_predict)
+        if save_output:
+            # Save the predictions to files if specified
+            y_pred_filename_prefix = kwargs_predict["y_pred_filename_prefix"]
+            save_ypred_to_files(class_result,
+                                f"{y_pred_filename_prefix}_{model_filename[6]}=1",
+                                y_pred_output_dir)
+
+    return result_all

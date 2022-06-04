@@ -8,7 +8,7 @@ import yaml
 
 from src.load_save_data_s3 import upload_file_to_s3, download_file_from_s3
 from src.manage_rds_db import create_db, PostManager
-from src.modeling.clean import clean_wrapper
+from src.modeling.clean import clean_wrapper, clean_wrapper_pipeline
 from src.modeling.evaluate import evaluate_wrapper
 from src.modeling.predict import predict_wrapper
 from src.modeling.train import train_wrapper
@@ -73,9 +73,12 @@ if __name__ == '__main__':
                           help="Path to the config yaml file.")
 
     # Define arguments if action == clean
-    sp_model.add_argument("--raw_data_path",
+    sp_model.add_argument("--raw_data",
                           default="data/raw/raw_forum.csv",
                           help="Path to raw data file.")
+    sp_model.add_argument("--is_new_data", action="store_true",
+                          help="Whether the given raw data csv is to cleaned for prediction "
+                          "or, if false, for model training. Defaults to False.")
     sp_model.add_argument("-clean_data_output_dir",
                           default="data/clean",
                           help="Directory to store the cleaned data for later steps.")
@@ -103,10 +106,13 @@ if __name__ == '__main__':
                           help="Path to vectorizer object.")
     sp_model.add_argument("--new_text_path",
                           default="output/train_test_split/test.csv",
-                          help="Path to new text to be predicted.")
+                          help="Either path to new text to be predicted or a string of new text.")
     sp_model.add_argument("--y_pred_output_dir",
                           default="output/predictions",
                           help="Directory to store the predictions.")
+    sp_model.add_argument("--is_string",
+                          action="store_true",
+                          help="Whether the given `new_text_path` is a string of new text.")
 
     # Define arguments if action == evaluate
     sp_model.add_argument("--metrics",
@@ -129,27 +135,6 @@ if __name__ == '__main__':
     # Parse arguments
     args = parser.parse_args()
     sp_used = args.subparser_name
-
-    # Load configuration file
-    try:
-        f = open(args.config_path, "r", encoding="utf-8")
-    except FileNotFoundError as e:
-        logger.error("Config file not found: %s", args.config_path)
-        raise e
-    else:
-        try:
-            config = yaml.load(f, Loader=yaml.FullLoader)
-            logger.info("Config file loaded: %s", args.config_path)
-        except yaml.YAMLError as e:
-            logger.error("Error parsing config file: %s", args.config_path)
-            raise e
-        finally:
-            f.close()
-
-    # Set Random Seed before starting
-    if "random_seed" in config:
-        random.seed(config["random_seed"])
-        logger.info("Set random seed to %d", config["random_seed"])
 
     # Define actions related to `manage_rds`
     if sp_used == "manage_rds":
@@ -185,11 +170,32 @@ if __name__ == '__main__':
     # Define actions related to `model`
     elif sp_used == "model":
 
+        # Load configuration file
+        try:
+            f = open(args.config_path, "r", encoding="utf-8")
+        except FileNotFoundError as e:
+            logger.error("Config file not found: %s", args.config_path)
+            raise e
+        else:
+            try:
+                config = yaml.load(f, Loader=yaml.FullLoader)
+                logger.info("Config file loaded: %s", args.config_path)
+            except yaml.YAMLError as e:
+                logger.error("Error parsing config file: %s", args.config_path)
+                raise e
+            finally:
+                f.close()
+
+        # Set Random Seed before starting
+        if "random_seed" in config:
+            random.seed(config["random_seed"])
+            logger.info("Set random seed to %d", config["random_seed"])
+
         # action = "clean", cleaning raw posts
         if args.action in ["clean", "all"]:
             config_step = config["clean"]
-            clean_data = clean_wrapper(args.raw_data_path, args.clean_data_output_dir,
-                                       **config_step)
+            clean_data = clean_wrapper(args.raw_data, args.clean_data_output_dir,
+                                       args.is_new_data, save_output=True, **config_step)
 
         # action = "train", perform train-test split, fit a vectorizer,
         # and train a logistic regression model
@@ -214,7 +220,7 @@ if __name__ == '__main__':
             config_step = config["predict"]["predict_wrapper"]
             predict_wrapper(
                 args.model_folder_path, args.new_text_path, args.vectorizer_path,
-                args.y_pred_output_dir, **config_step)
+                args.y_pred_output_dir, args.is_string, save_output=True, **config_step)
             logger.info("Score step finished")
 
         # step = "evaluate", evaluate the model

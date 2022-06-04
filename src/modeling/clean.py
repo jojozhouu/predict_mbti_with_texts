@@ -12,33 +12,61 @@ from nltk.stem import PorterStemmer, WordNetLemmatizer
 
 logger = logging.getLogger(__name__)
 
+# Define global lemmatizer
+wnl = WordNetLemmatizer()
+
 
 def check_dl_nltk_data(**kwargs_nltk_dl) -> None:
     """
-    Check if the NLTK stopwords and wordnet are downloaded. If not, download it.
+    Check if the NLTK stopwords, wordnet, omw-1.4 and punkt are downloaded. 
+    If not, download it.
     """
     logger.info("Checking if NLTK stopwords is downloaded.")
+
+    # Add custom data folder to nltk search path
+    nltk.data.path.append(os.path.join(
+        os.getcwd(), kwargs_nltk_dl["download_dir"]))
+
+    # Try to find packages in nltk data folder. If not found, download them
+    # Check for stopwords
     try:
         nltk.data.find('stopwords')
     except LookupError:
         logger.info("NLTK stopwords is not downloaded. Downloading...")
-        nltk.download('stopwords', **kwargs_nltk_dl)
+        nltk.download('stopwords', kwargs_nltk_dl["download_dir"])
     else:
         logger.info("NLTK stopwords is already downloaded.")
 
+    # Check for wordnet
     logger.info("Checking if NLTK wordnet is downloaded.")
     try:
         nltk.data.find('wordnet')
     except LookupError:
-        logger.info("NLTK wordnet is not downloaded. Downloading...")
-        nltk.download('wordnet', **kwargs_nltk_dl)
+        logger.info(
+            "NLTK wordnet is not downloaded. Downloading...")
+        nltk.download('wordnet', kwargs_nltk_dl["download_dir"])
     else:
-        logger.info("NLTK wordnet is already downloaded.")
+        logger.info("NLTK wordnet are already downloaded.")
 
-    # logger.info("Importing NLTK wordnet and stopwords...")
-    # from nltk.corpus import stopwords
-    # from nltk import wordnet  # is this necessary?????????
-    # logger.info("Successfully imported NLTK wordnet and stopwords")
+    # Check for omw-1.4
+    logger.info("Checking if NLTK omw-1.4 is downloaded.")
+    try:
+        nltk.data.find('omw-1.4')
+    except LookupError:
+        logger.info("NLTK omw-1.4 is not downloaded. Downloading...")
+        nltk.download('omw-1.4', kwargs_nltk_dl["download_dir"])
+    else:
+        logger.info("NLTK omw-1.4 is already downloaded.")
+
+    # Check for punkt
+    logger.info("Checking if NLTK punkt is downloaded.")
+    try:
+        nltk.data.find('punkt')
+    except LookupError:
+        logger.info("NLTK punkt is not downloaded. Downloading...")
+        nltk.download('punkt', kwargs_nltk_dl["download_dir"])
+    else:
+        logger.info("NLTK punkt is already downloaded.")
 
 
 def read_raw_data(raw_data_path: str) -> pd.DataFrame:
@@ -108,7 +136,7 @@ def define_stopwords() -> set:
     logger.debug("Defining stopwords.")
     sw_reg = nltk.corpus.stopwords.words('english')
     sw_no_punc = re.sub('[' + re.escape(string.punctuation) + ']', '',
-                        ' '.join(sw1)).split()
+                        ' '.join(sw_reg)).split()
     sw = set(sw_reg + sw_no_punc)
     logger.debug("Successfully defined stopwords.")
 
@@ -125,10 +153,8 @@ def replace_url_to_link(txt: str) -> str:
     Returns:
         str: Text with URLs replaced.
     """
-    logger.debug("Replacing URLs with word `link`.")
     txt = re.sub(
         'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', "link", txt)
-    logger.debug("Successfully replaced URLs with word `link`.")
 
     return txt
 
@@ -143,9 +169,7 @@ def remove_punc(txt: str) -> str:
     Returns:
         str: Text with punctuation removed.
     """
-    logger.debug("Removing punctuation.")
     txt = re.sub('[' + re.escape(string.punctuation) + ']', '', txt)
-    logger.debug("Successfully removed punctuation.")
 
     return txt
 
@@ -161,9 +185,7 @@ def remove_stopwords(txt: str, sw: set) -> str:
     Returns:
         str: Text with stopwords removed.
     """
-    logger.debug("Removing stopwords.")
-    txt = ' '.join([w for w in word_tokenize(txt) if w not in sw])
-    logger.debug("Successfully removed stopwords.")
+    txt = ' '.join([w for w in txt if w not in sw])
 
     return txt
 
@@ -178,58 +200,10 @@ def lemmatize_all(word: str) -> str:
     Returns:
         str: Lemmatized word.
     """
-    logger.debug("Lemmatizing word.")
-    wnl = WordNetLemmatizer()
     word = wnl.lemmatize(word, 'a')
     word = wnl.lemmatize(word, 'v')
     word = wnl.lemmatize(word, 'n')
-    logger.debug("Successfully lemmatized word.")
-
     return word
-
-
-def clean_wrapper(data: pd.DataFrame, stopwords: list) -> pd.DataFrame:
-    """
-    Wrapper function for cleaning text.
-
-    Args:
-        data (`pandas.DataFrame`): raw data to clean.
-        stopwords (`list`): List of stopwords.
-    Returns:
-        str: Cleaned text.
-    """
-    logger.info("Cleaning text for each record.")
-
-    for i in range(0, data.shape[0]):
-        logger.debug("Cleaning posts for record %d out of %d",
-                     i+1, data.shape[0])
-        # Get raw posts from raw_data dataframe
-        text = data["posts"].iloc[i]
-
-        # Replace URLs with word `link`.
-        text = replace_url_to_link(text)
-
-        # Remove punctuation.
-        text = remove_punc(text)
-
-        # Convert all words to lower cases
-        text = re.sub(' +', ' ', text).lower()
-
-        # Lemmatize all words.
-        text = list(map(lemmatize_all, text.split(" ")))
-
-        # Remove stopwords.
-        text = remove_stopwords(text, stopwords)
-
-        # Join all words back together.
-        text = " ".join(text)
-
-        # Update the cleaned text in the raw_data dataframe.
-        data["posts"].iloc[i] = text
-
-    logger.debug("Successfully cleaned text.")
-
-    return data
 
 
 def save_clean_data_to_file(data: pd.DataFrame,
@@ -257,13 +231,13 @@ def save_clean_data_to_file(data: pd.DataFrame,
     # Validate cleaned_data_output_dir exists. If not, create a new directory at
     # cleaned_data_output_dir.
     if not os.path.exists(clean_data_output_dir):
-        logger.warning("Output directory does not exist: %s. \
-            Creating new directory.", clean_data_output_dir)
+        logger.warning("Output directory does not exist: %s. ",
+                       "Creating new directory.", clean_data_output_dir)
         os.makedirs(clean_data_output_dir)
         logger.info("Created directory: %s",
                     clean_data_output_dir)
 
-    # Save cleaned data to file
+    # Save cleaned data to file, if specified
     filepath = os.path.join(
         clean_data_output_dir,
         kwargs_save_clean_data["clean_data_output_filename"]) + ".csv"
@@ -276,7 +250,6 @@ def save_clean_data_to_file(data: pd.DataFrame,
 
 
 def save_stopwords_to_file(stopwords: list,
-                           stopwords_output_dir: str,
                            **kwargs_save_stopwords: dict) -> None:
     """
     Save stopwords to a csv file at the specified path.
@@ -294,19 +267,20 @@ def save_stopwords_to_file(stopwords: list,
     Raises:
         IOError, OSError: If the output file is not accessible.
     """
+    stopwords_output_dir = kwargs_save_stopwords["stopwords_output_dir"]
     logger.info("Saving stopwords to file: %s",
                 stopwords_output_dir)
 
     # Validate stopwords_output_dir exists. If not, create a new directory at
     # stopwords_output_dir.
     if not os.path.exists(stopwords_output_dir):
-        logger.warning("Output directory does not exist: %s. \
-            Creating new directory.", stopwords_output_dir)
+        logger.warning("Output directory does not exist: %s. ",
+                       "Creating new directory.", stopwords_output_dir)
         os.makedirs(stopwords_output_dir)
         logger.info("Created directory: %s",
                     stopwords_output_dir)
 
-    # Save stopwords to file
+    # Save stopwords to file if specified
     filepath = os.path.join(
         stopwords_output_dir,
         kwargs_save_stopwords["stopwords_output_filename"]) + ".csv"
@@ -318,3 +292,86 @@ def save_stopwords_to_file(stopwords: list,
         logger.error("Failed to save stopwords to file: %s", filepath)
         raise e
     logger.info("Saved stopwords to file: %s", filepath)
+
+
+def clean_wrapper(raw_data: str,
+                  clean_data_output_dir: str,
+                  is_new_data: bool,
+                  save_output: bool,
+                  **kwargs_clean) -> pd.DataFrame:
+    """
+    Wrapper function for cleaning text.
+
+    Args:
+        data (`pandas.DataFrame`): raw data to clean.
+    Returns:
+        str: Cleaned text.
+    """
+    logger.info("Starting clean.py")
+
+    # Read raw data from local system, if it's a file
+    if is_new_data:
+        data = raw_data
+    else:
+        data = read_raw_data(raw_data)
+
+    # Check if required nltk packages (e.g. stopwords) are installed.
+    # If not, will install and re-import required packages
+    check_dl_nltk_data(**kwargs_clean["check_dl_nltk_data"])
+
+    if not is_new_data:
+        # Create binary target.
+        data = create_binary_target(data)
+        num_records = data.shape[0]
+    else:
+        num_records = 1
+
+    # Define stopwords
+    sw = define_stopwords()
+
+    for i in range(0, num_records):
+        logger.debug("Cleaning posts for record %d out of %d",
+                     i+1, num_records)
+
+        if not is_new_data:
+            # Get raw posts from raw_data dataframe
+            # validate if text is a df, if so does it have "posts" ccolumn
+            text = data.at[i, "posts"]
+        else:
+            text = data
+
+        # Replace URLs with word `link`.
+        text = replace_url_to_link(text)
+
+        # Remove punctuation.
+        text = remove_punc(text)
+
+        # Convert all words to lower cases
+        text = re.sub(' +', ' ', text).lower()
+
+        # Lemmatize all words.
+        logger.debug("Lemmatizing all words...")
+        text = list(map(lemmatize_all, text.split(" ")))
+
+        # Remove stopwords.
+        text = remove_stopwords(text, sw)
+
+        if not is_new_data:
+            # Update the cleaned text in the raw_data dataframe.
+            data.at[i, "posts"] = text
+
+    # Save output if specified
+    if save_output:
+        # Save cleaned data to local system.
+        save_clean_data_to_file(data, clean_data_output_dir,
+                                **kwargs_clean["save_clean_data_to_file"])
+
+        # Save stopwords to local system.
+        save_stopwords_to_file(sw, **kwargs_clean["save_stopwords_to_file"])
+
+    logger.debug("Successfully cleaned text.")
+
+    if not is_new_data:
+        return data
+    else:
+        return text
