@@ -40,7 +40,7 @@ logger.debug(
     'go to 127.0.0.1 instead of 0.0.0.0.', app.config["HOST"], app.config["PORT"])
 
 # Initialize the database session
-track_manager = PostManager(app)
+post_manager = PostManager(app)
 
 # Retrieve the path to the folder containing 4 trained model object
 MODEL_FOLDER = app.config["MODEL_FOLDER"]
@@ -157,7 +157,21 @@ def show_result():
     result_F = pred_result["F"].values[0]
     result_J = pred_result["J"].values[0]
 
+    # Combine results to get a single MBTI type
+    IorE = "I" if result_I > 0.5 else "E"
+    SorN = "S" if result_S > 0.5 else "N"
+    ForT = "F" if result_F > 0.5 else "T"
+    JorP = "J" if result_J > 0.5 else "P"
+    mbti_pred = IorE + SorN + ForT + JorP
+
+    # Save raw user input, cleaned text, and predicted type to RDS database
+    logger.info("Saving user input to RDS database")
+    post_manager.ingest_app_user_input(raw_text=text, cleaned_text=cleaned_text,
+                                       pred_type=mbti_pred, truncate=0)
+    logger.info("Raw user input saved to RDS database")
+
     return render_template('result.html',
+                           mbti_pred=mbti_pred,
                            result_I=result_I,
                            result_S=result_S,
                            result_F=result_F,
