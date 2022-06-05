@@ -18,6 +18,7 @@ logger = logging.getLogger()
 
 # read config file instead of hardcoding
 SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI')
+S3_BUCKET = os.environ.get('S3_BUCKET')
 
 
 if __name__ == '__main__':
@@ -53,9 +54,12 @@ if __name__ == '__main__':
     sp_s3.add_argument("--data_file_path",
                        default="data/raw/raw_forum.csv",
                        help="Path to data file to upload to S3 bucket.")
-    sp_s3.add_argument("--s3_path",
-                       default="s3://2022-msia423-zhou-jojo/raw/raw_forum.csv",
+    sp_s3.add_argument("--s3_bucket",
+                       default=S3_BUCKET,
                        help="Path to S3 bucket directory to upload data to.")
+    sp_s3.add_argument("--s3_path",
+                       default="raw/raw_forum.csv",
+                       help="Path to where the data file will be uploaded to in the specified S3 bucket.")
 
     # Define subparsers and arguments for interacting with model
     # including cleaning data, training, predicting, and evaluating the model
@@ -163,13 +167,14 @@ if __name__ == '__main__':
 
         if args.action == "upload_data":
             # upload data to S3
-            upload_file_to_s3(args.data_file_path, args.s3_path)
+            upload_file_to_s3(args.data_file_path,
+                              args.s3_bucket, args.s3_path)
 
         elif args.action == "download_data":
             # download raw data from S3 bucket, if raw data does not exist locally
             if not os.path.isfile(args.data_file_path):
                 download_file_from_s3(
-                    args.s3_path, args.data_file_path)
+                    args.data_file_path, args.s3_bucket, args.s3_path)
 
     # Define actions related to `model`
     elif sp_used == "model":

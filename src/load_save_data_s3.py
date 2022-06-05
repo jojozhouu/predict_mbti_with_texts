@@ -16,20 +16,19 @@ logger = logging.getLogger(__name__)
 
 def parse_s3(s3path: str) -> Tuple[str, str]:  # TODO: NEED TO TEST THIS
     """Parse s3 path. Source: https://github.com/MSIA/2022-msia423/blob/main/aws-s3/s3.py """
-    regex = r"s3://([\w._-]+)/([\w./_-]+)"
+    regex = r"s3://([\w._-]+)"
 
     m = re.match(regex, s3path)
     s3bucket = m.group(1)
-    s3path = m.group(2)
 
-    return s3bucket, s3path
+    return s3bucket
 
 
-def upload_file_to_s3(local_path: str, s3path: str) -> None:
+def upload_file_to_s3(local_path: str, s3bucket: str, s3_just_path: str) -> None:
     """Upload objects to S3 bucket"""
 
-    # Extract S3 bucket names and path from input
-    s3bucket, s3_just_path = parse_s3(s3path)
+    # Extract S3 bucket names from "s3://xxx"
+    s3bucket = parse_s3(s3bucket)
 
     # connect to S3, raise errors if no valid AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in env
     try:
@@ -57,7 +56,8 @@ def upload_file_to_s3(local_path: str, s3path: str) -> None:
         # Upload the file
         try:
             bucket.upload_file(local_path, s3_just_path)
-            logger.info('Data uploaded from %s to %s', local_path, s3path)
+            logger.info('Data uploaded from %s to %s',
+                        local_path, s3bucket+s3_just_path)
         except boto3.exceptions.S3UploadFailedError as se:
             logger.error(
                 """Upload failed. Please check if the file exists and if the S3 path is correct. %s""", se)
@@ -66,11 +66,11 @@ def upload_file_to_s3(local_path: str, s3path: str) -> None:
         logger.info("File already exists in S3. Skipping upload.")
 
 
-def download_file_from_s3(local_path: str, s3path: str) -> None:
+def download_file_from_s3(local_path: str, s3bucket: str, s3_just_path: str) -> None:
     """Download file from S3 bucket"""
 
-    # Extract S3 bucket names and path from input
-    s3bucket, s3_just_path = parse_s3(s3path)
+    # Extract S3 bucket names from "s3://xxx"
+    s3bucket = parse_s3(s3bucket)
 
     # connect to S3, raise errors if no valid AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in env
     try:
@@ -97,4 +97,4 @@ def download_file_from_s3(local_path: str, s3path: str) -> None:
         raise ne
     else:
         logger.info('Data successfully downloaded from %s to %s',
-                    s3path, local_path)
+                    s3bucket+s3_just_path, local_path)
