@@ -281,7 +281,7 @@ def predict_wrapper(model_folder_path: str, new_text_path: str, vectorizer_path:
     class_result = pd.DataFrame(columns=["probability", "class"])
 
     # Create a dataframe for all predictions for new text prediction
-    result_all = pd.DataFrame(columns=["I", "S", "F", "J"])
+    result_prob = pd.DataFrame(columns=["I", "S", "F", "J"])
 
     # Validate model files in the given folder
     validate_model_folder(model_folder_path)
@@ -324,7 +324,7 @@ def predict_wrapper(model_folder_path: str, new_text_path: str, vectorizer_path:
         # y_pred_prob[1] is the probability of belonging to class 1
         class_result["probability"] = y_pred_prob
         class_result["class"] = y_pred_bin
-        result_all[model_filename[6]] = y_pred_prob
+        result_prob[model_filename[6]] = y_pred_prob
 
         if save_output:
             # Save the predictions to files if specified
@@ -333,4 +333,4 @@ def predict_wrapper(model_folder_path: str, new_text_path: str, vectorizer_path:
                                 f"{y_pred_filename_prefix}_{model_filename[6]}=1",
                                 y_pred_output_dir)
 
-    return result_all
+    return result_prob

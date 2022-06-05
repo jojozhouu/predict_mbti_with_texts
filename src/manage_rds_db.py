@@ -8,7 +8,7 @@ import flask
 from flask_sqlalchemy import SQLAlchemy
 import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import TEXT, Column, Integer, String
+from sqlalchemy import TEXT, Column, Integer, String, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import ProgrammingError, OperationalError, SQLAlchemyError, IntegrityError
 from sqlalchemy_utils.functions import database_exists
@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 
-class Posts(Base):
-    """Data model to store a collection of posts from people and their MBTI type"""
+class PostsWithLabel(Base):
+    """Data model to store a collection of posts from people and their known MBTI type"""
 
-    __tablename__ = 'posts'
+    __tablename__ = 'posts_for_training'
 
     person_id = Column(Integer, primary_key=True)
     type = Column(String(4), unique=False, nullable=False)
@@ -29,6 +29,21 @@ class Posts(Base):
 
     def __repr__(self):
         return f"<posts first 10 letter {self.posts[:10]}>"
+
+
+class TextsFromApp(Base):
+    """Data model to store raw user input from web app and
+    their predicted MBTI type from the trained model"""
+
+    __tablename__ = 'posts_predicted'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    predicted_type = Column(String(4), unique=False, nullable=True)
+    raw_text = Column(TEXT, unique=False, nullable=False)
+    cleaned_text = Column(TEXT, unique=False, nullable=True)
+
+    def __repr__(self):
+        return f"<posts first 10 letter {self.raw_text[:10]}>"
 
 
 def create_db(engine_string: str) -> None:
@@ -43,10 +58,10 @@ def create_db(engine_string: str) -> None:
     engine = sqlalchemy.create_engine(engine_string)
     try:
         # Create schema
-        Posts.metadata.create_all(engine)
+        Base.metadata.create_all(engine)
         logger.info("Database created.")
     except OperationalError as e:
-        logger.error(""" Could not create database. Pleases make sure VPN is 
+        logger.error(""" Could not create database. Pleases make sure VPN is
         connected and RDS URI is correct. %s""", e)
         sys.exit(1)
 
@@ -62,7 +77,7 @@ def delete_db(engine_string: str) -> None:
     engine = sqlalchemy.create_engine(engine_string)
 
     try:
-        Posts.metadata.drop_all(engine)
+        Base.metadata.drop_all(engine)
     except OperationalError as e:
         logger.error(""" Could not delete database. Pleases make sure VPN is
         connected and RDS URI is correct. %s""", e)
@@ -98,25 +113,29 @@ class PostManager:
         """Closes SQLAlchemy session."""
         self.session.close()
 
-    def truncate(self) -> None:
-        """Truncates the posts table.
+    def truncate(self, table) -> None:
+        """Truncates the specified table.
         Returns:
             None
         """
         logger.info("Truncating posts table")
         try:
-            self.session.query(Posts).delete()
+            self.session.query(table).delete()
             self.session.commit()
         except SQLAlchemyError as e:
             logger.error("""An error occur when truncating the table.
                              Transaction rolled back, %s""", e)
+            self.session.rollback()
+        except OperationalError as e:
+            logger.error("""Could not truncate table.
+                             Does the table to be truncated exist? %s""", e)
             self.session.rollback()
         else:
             logger.info("Truncated posts table")
         finally:
             self.close()
 
-    def ingest_data_file(self, file: str, truncate: int = 0) -> None:
+    def ingest_raw_data_file(self, file: str, truncate: int = 0) -> None:
         """Ingests data from a local csv file into the posts table.
         Args:
             file (str): path to the csv file to ingest.
@@ -125,7 +144,7 @@ class PostManager:
         """
         # Truncate table if specified
         if truncate:
-            self.truncate()
+            self.truncate(PostsWithLabel)
 
         logger.info("Ingesting data")
         try:
@@ -141,7 +160,7 @@ class PostManager:
                 id, type, post = line.split(",", 2)
                 try:
                     self.session.add(
-                        Posts(person_id=id, type=type, posts=post))
+                        PostsWithLabel(person_id=id, type=type, posts=post))
                 except SQLAlchemyError as e:
                     logger.error(
                         """An error occur when adding records to the session.
@@ -170,7 +189,7 @@ class PostManager:
                               Please make sure VPN is connected. Error: %s""", e)
             self.session.rollback()
         except ProgrammingError as e:
-            logger.error("""Could not find the table. Transaction rolled back. 
+            logger.error("""Could not find the table. Transaction rolled back.
             Please make sure the table exists.""")
         except Exception as e:
             logger.error("Exiting due to error: %s", e)
@@ -178,5 +197,50 @@ class PostManager:
         else:
             logger.info("Ingestion from %s complete. Took %.2f seconds",
                         file, time() - start_time)
+        finally:
+            self.close()
+
+    def ingest_app_user_input(self, raw_text: str, cleaned_text: str, pred_type: str, truncate: int = 0) -> None:
+        """Ingests user input string from the web app into posts_predicted table
+        Args:
+            file (str): path to the csv file to ingest.
+        Returns:
+            None
+        """
+        # Truncate table if specified
+        if truncate:
+            self.truncate(TextsFromApp)
+
+        logger.info(
+            "Ingesting raw input data with temporary predicted label as None")
+        try:
+            self.session.add(
+                TextsFromApp(predicted_type=pred_type, raw_text=raw_text, cleaned_text=cleaned_text))
+            logger.debug(
+                "Added record (type: %s, raw_text: %s ...) to the session", type, raw_text[:10])
+        except SQLAlchemyError as e:
+            logger.error(
+                """An error occur when adding records to the session.
+                    Transaction rolled back, %s""", e)
+            self.session.rollback()
+
+        # Commit the session
+        try:
+            logger.info("Committing session...")
+            start_time = time()
+            self.session.commit()
+        except OperationalError as e:
+            logger.error("""Could not find the table. Transaction rolled back.
+                              Please make sure VPN is connected. Error: %s""", e)
+            self.session.rollback()
+        except ProgrammingError as e:
+            logger.error("""Could not find the table. Transaction rolled back.
+            Please make sure the table exists.""")
+        except Exception as e:
+            logger.error("Exiting due to error: %s", e)
+            self.session.rollback()
+        else:
+            logger.info("Ingesting %s complete. Took %.2f seconds",
+                        raw_text[:10], time() - start_time)
         finally:
             self.close()

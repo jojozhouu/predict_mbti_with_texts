@@ -7,8 +7,8 @@ import random
 import yaml
 
 from src.load_save_data_s3 import upload_file_to_s3, download_file_from_s3
-from src.manage_rds_db import create_db, PostManager
-from src.modeling.clean import clean_wrapper, clean_wrapper_pipeline
+from src.manage_rds_db import create_db, PostManager, delete_db
+from src.modeling.clean import clean_wrapper
 from src.modeling.evaluate import evaluate_wrapper
 from src.modeling.predict import predict_wrapper
 from src.modeling.train import train_wrapper
@@ -32,7 +32,7 @@ if __name__ == '__main__':
                                    description="Interact wwith RDS database, including creating databases \
                                        and ingesting data")
     sp_rds.add_argument("action",
-                        choices=["create_db", "ingest_data"],
+                        choices=["create_db", "ingest_data", "delete_db"],
                         help="Action to perform on RDS database.")
     sp_rds.add_argument("--engine_string",
                         default=SQLALCHEMY_DATABASE_URI,
@@ -151,8 +151,12 @@ if __name__ == '__main__':
 
             # ingest data into RDS database
             post_manager = PostManager(engine_string=args.engine_string)
-            post_manager.ingest_data_file(
+            post_manager.ingest_raw_data_file(
                 args.data_file_path, truncate=is_truncate)
+
+        elif args.action == "delete_db":
+            # delete database in RDS
+            delete_db(args.engine_string)
 
     # Define actions related to `manage_s3`
     elif sp_used == "manage_s3":
