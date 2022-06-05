@@ -2,25 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link href="static/basic.css" rel="stylesheet">
+    <link href="static/search.css" rel="stylesheet">
 </head>
 
 <body>
+  <div class="background"> 
+  </div>
+  <div class="container">
     <h2>
-         <a> Put in your words here and find out your MBTI type.</a>
+      <a> Put in your words here and find out your MBTI type.</a>
     </h2>
 
     <h3>
       <a href = "{{ url_for('home') }}"> Back to homepage </a>
-     </h3>
+      </h3>
 
     <hr/>
       <form method=post class=input_text>
       <dl>
-        <input type=text size=50 name=text placeholder="Texts here">
-        <input type=submit value="Predict">
+        <textarea name=text cols=70 rows=15 maxlength=30000 minlength=50 placeholder="Texts here" required="true"></textarea>
+        <button type=submit> Predict >> </button> 
       </dl>
     </form>
+    <hr/>
+  </div>
 
 </body>
 </html>

@@ -1,0 +1,84 @@
+@import url(http://fonts.googleapis.com/css?family=Open+Sans:400,700,600);
+
+
+.container {
+  /* Center the content */
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  /* Take full size */
+  height: 100vh;
+  width: 100%;
+}
+
+h1 {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #000000;  
+  font-size: 50px;
+  line-height: 0.9;
+  text-align: center;
+}
+
+h2 {
+  position: relative;
+  
+  color: #2a67d8;  
+  font-size: 30px;
+  line-height: 0.9;
+  text-align: center;
+}
+
+h3 {
+  position: relative;
+  color: #2a67d8;  
+  font-size: 15px;
+  line-height: 0.9;
+  text-align: center;
+}
+
+
+
+textarea {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #ffffff;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 2px;
+  resize: none;
+  outline: none;
+}
+
+button {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  padding      : 5px;
+  font         : bold .6em sans-serif;
+  font-size: 15px;
+  border       : 2px solid #2a67d8;
+  border-radius: 3px;
+  width: 50%;
+  background   : #ffffff;
+  align-items: center;
+  cursor       : pointer;
+}
+
+.background{
+  /* Background */
+  content: "";
+  background-image: url('index-background.png');
+  background-size: cover;
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  bottom: 0px;
+  left: 0px;
+  opacity: 0.15;
+}
+

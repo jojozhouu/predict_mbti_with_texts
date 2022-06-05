@@ -2,31 +2,38 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link href="static/basic.css" rel="stylesheet">
+    <link href="static/result.css" rel="stylesheet">
 </head>
 
+
 <body>
-    <h1>
-      <a> Your MBTI type is ...</a>
-    </h1>
+    <div class="background">
+    </div>
 
-    <body>
-      <a> Your predicted MBTI type is {{mbti_pred}}</a>
-      <br><a> Predicted Probabiliy for I (vs. E) = {{result_I}}</a>
-      <br><a> Predicted Probabiliy for S (vs. N) = {{result_S}}</a>
-      <br><a> Predicted Probabiliy for F (vs. T) = {{result_F}}</a>
-      <br><a> Predicted Probabiliy for J (vs. P) = {{result_J}}</a>
-    </body>
+    <div class="container">
+      <h2>
+        <a> Your MBTI type is ...</a>
+      </h2>
+      <h1>
+        {{mbti_pred}}
+      </h1>
 
-    <h3>
-         <a href = "{{ url_for('home') }}"> Try again (back to homepage) </a>
-    </h3>
+      <body>
+        <br><div class="progress-container">E&ensp;<progress value={{1-result_I}} min=0 max=1>{{1-result_I}}</progress>&ensp;I</div>
+        <div class="progress-container">S&ensp;<progress value={{result_S}} min=0 max=1>{{result_S}}</progress>&ensp;N</div>
+        <div class="progress-container">T&ensp;<progress value={{1-result_F}} min=0 max=1>{{result_F}}</progress>&ensp;F</div>
+        <div class="progress-container">J&ensp;<progress value={{result_J}} min=0 max=1>{{result_P}}</progress>&ensp;P</div><br>
+      </body>
 
-    <body>
-      <a href = "https://www.myersbriggs.org/my-mbti-personality-type/mbti-basics/"> Learn more about MBTI </a>
-    </body>
 
-  
+      <h3>
+          <a href = "{{ url_for('home') }}"> Try again (back to homepage) </a>
+      </h3>
+      <h3>
+        <a href = "https://www.myersbriggs.org/my-mbti-personality-type/mbti-basics/"> Learn more about MBTI </a>
+      </h3>
+
+    </div>
 
 </body>
 </html>

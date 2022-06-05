@@ -74,36 +74,6 @@ def home():
     """
     return render_template('index.html')
 
-# @app.route('/')
-# def index():
-#     """Main view that displays all 16 MBTI types and a text box for entering texts.
-
-#     Returns:
-#         Rendered html template
-#     """
-
-#     try:
-#         tracks = track_manager.session.query(Tracks).limit(
-#             app.config["MAX_ROWS_SHOW"]).all()
-#         logger.debug("Index page accessed")
-#         return render_template('index.html', tracks=tracks)
-#     except sqlite3.OperationalError as e:
-#         logger.error(
-#             "Error page returned. Not able to query local sqlite database: %s."
-#             " Error: %s ",
-#             app.config['SQLALCHEMY_DATABASE_URI'], e)
-#         return render_template('error.html')
-#     except sqlalchemy.exc.OperationalError as e:
-#         logger.error(
-#             "Error page returned. Not able to query MySQL database: %s. "
-#             "Error: %s ",
-#             app.config['SQLALCHEMY_DATABASE_URI'], e)
-#         return render_template('error.html')
-#     except:
-#         traceback.print_exc()
-#         logger.error("Not able to display tracks, error page returned")
-#         return render_template('error.html')
-
 
 @app.route('/input_text', methods=['Get', 'POST'])
 def input_text():
@@ -168,7 +138,6 @@ def show_result():
     logger.info("Saving user input to RDS database")
     post_manager.ingest_app_user_input(raw_text=text, cleaned_text=cleaned_text,
                                        pred_type=mbti_pred, truncate=0)
-    logger.info("Raw user input saved to RDS database")
 
     return render_template('result.html',
                            mbti_pred=mbti_pred,
@@ -176,17 +145,6 @@ def show_result():
                            result_S=result_S,
                            result_F=result_F,
                            result_J=result_J)
-
-
-@app.route('/learn_more')
-def learn_more():
-    """View that process a text box for entering texts.
-
-    Returns:
-        redirect to result page
-    """
-    # TODO call preprocess and predict functions
-    return render_template('about.html')
 
 
 if __name__ == '__main__':
