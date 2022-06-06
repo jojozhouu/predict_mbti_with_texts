@@ -1,5 +1,4 @@
 import logging
-import os
 import sys
 from time import time
 from typing import Optional
@@ -11,7 +10,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import TEXT, Column, Integer, String, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import ProgrammingError, OperationalError, SQLAlchemyError, IntegrityError
-from sqlalchemy_utils.functions import database_exists
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +21,7 @@ class PostsWithLabel(Base):
 
     __tablename__ = 'posts_for_training'
 
-    person_id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     type = Column(String(4), unique=False, nullable=False)
     posts = Column(TEXT, unique=False, nullable=False)
 
@@ -54,16 +52,26 @@ def create_db(engine_string: str) -> None:
         None
     """
     # Connect to RDS
-
-    engine = sqlalchemy.create_engine(engine_string)
     try:
-        # Create schema
-        Base.metadata.create_all(engine)
-        logger.info("Database created.")
-    except OperationalError as e:
-        logger.error(""" Could not create database. Pleases make sure VPN is
+        logger.info("Connecting to RDS...")
+        engine = sqlalchemy.create_engine(engine_string)
+    except (ProgrammingError, OperationalError, SQLAlchemyError) as e:
+        logger.error(""" Could not create database. Please make sure VPN is
         connected and RDS URI is correct. %s""", e)
         sys.exit(1)
+    except AttributeError as e:
+        logger.error("""Could not create database. Please make sure SQLALCHEMY_DATABASE_URI is
+        passed as an environment variable. %s""", e)
+        sys.exit(1)
+    else:
+        try:
+            # Create schema
+            Base.metadata.create_all(engine)
+            logger.info("Database created.")
+        except OperationalError as e:
+            logger.error(""" Could not create database. Pleases make sure VPN is
+            connected and RDS URI is correct. %s""", e)
+            sys.exit(1)
 
 
 def delete_db(engine_string: str) -> None:
@@ -74,6 +82,7 @@ def delete_db(engine_string: str) -> None:
         None
     """
     # The Base.metadata object collects and manages Table operations
+    logger.info("Deleting database...")
     engine = sqlalchemy.create_engine(engine_string)
 
     try:
@@ -83,7 +92,6 @@ def delete_db(engine_string: str) -> None:
         connected and RDS URI is correct. %s""", e)
         sys.exit(1)
     else:
-        pass
         logger.info("Database deleted")
 
 
@@ -160,7 +168,7 @@ class PostManager:
                 id, type, post = line.split(",", 2)
                 try:
                     self.session.add(
-                        PostsWithLabel(person_id=id, type=type, posts=post))
+                        PostsWithLabel(type=type, posts=post))
                 except SQLAlchemyError as e:
                     logger.error(
                         """An error occur when adding records to the session.
@@ -180,10 +188,6 @@ class PostManager:
         try:
             start_time = time()
             self.session.commit()
-        except IntegrityError as e:
-            logger.error("""The database already contains the records you are trying to insert.
-            Transaction rolled back. Please truncate the table before attempting again. """)
-            self.session.rollback()
         except OperationalError as e:
             logger.error("""Could not find the table. Transaction rolled back.
                               Please make sure VPN is connected. Error: %s""", e)

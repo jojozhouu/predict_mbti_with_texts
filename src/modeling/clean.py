@@ -1,6 +1,5 @@
 import re
 import string
-from nltk import word_tokenize
 import logging
 import os
 from typing import Tuple, Union
@@ -8,7 +7,7 @@ from typing import Tuple, Union
 import pandas as pd
 from pandas.errors import ParserError
 import nltk
-from nltk.stem import PorterStemmer, WordNetLemmatizer
+from nltk.stem import WordNetLemmatizer
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +230,7 @@ def save_clean_data_to_file(data: pd.DataFrame,
     # Validate cleaned_data_output_dir exists. If not, create a new directory at
     # cleaned_data_output_dir.
     if not os.path.exists(clean_data_output_dir):
-        logger.warning("Output directory does not exist: %s. ",
+        logger.warning("Output directory does not exist: %s. "
                        "Creating new directory.", clean_data_output_dir)
         os.makedirs(clean_data_output_dir)
         logger.info("Created directory: %s",
@@ -274,7 +273,7 @@ def save_stopwords_to_file(stopwords: list,
     # Validate stopwords_output_dir exists. If not, create a new directory at
     # stopwords_output_dir.
     if not os.path.exists(stopwords_output_dir):
-        logger.warning("Output directory does not exist: %s. ",
+        logger.warning("Output directory does not exist: %s. "
                        "Creating new directory.", stopwords_output_dir)
         os.makedirs(stopwords_output_dir)
         logger.info("Created directory: %s",
@@ -329,10 +328,8 @@ def clean_wrapper(raw_data: str,
     # Define stopwords
     sw = define_stopwords()
 
+    logger.info("Cleaning data...It may take 2-3 minutes.")
     for i in range(0, num_records):
-        logger.debug("Cleaning posts for record %d out of %d",
-                     i+1, num_records)
-
         if not is_new_data:
             # Get raw posts from raw_data dataframe
             # validate if text is a df, if so does it have "posts" ccolumn
@@ -350,7 +347,6 @@ def clean_wrapper(raw_data: str,
         text = re.sub(' +', ' ', text).lower()
 
         # Lemmatize all words.
-        logger.debug("Lemmatizing all words...")
         text = list(map(lemmatize_all, text.split(" ")))
 
         # Remove stopwords.
@@ -359,6 +355,8 @@ def clean_wrapper(raw_data: str,
         if not is_new_data:
             # Update the cleaned text in the raw_data dataframe.
             data.at[i, "posts"] = text
+
+    logger.info("Finished cleaning data. %s records cleaned.", num_records)
 
     # Save output if specified
     if save_output:

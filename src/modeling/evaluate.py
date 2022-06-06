@@ -1,12 +1,9 @@
 import logging
 import os
-import pickle
-from typing import Tuple
 
 import pandas as pd
 from pandas.errors import ParserError
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import confusion_matrix, roc_auc_score, classification_report, accuracy_score
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 from sklearn.preprocessing import LabelEncoder
 
 logger = logging.getLogger(__name__)
@@ -79,33 +76,6 @@ def read_pred_from_path(y_pred_path: str) -> list:
 
     return y_pred_bin
 
-
-# def read_vectorizer_from_path(vectorizer_path: str) -> TfidfVectorizer:
-#     """
-#     Read the vectorizer from local pickle file.
-
-#     Args:
-#         vectorizer_path (`str`): Path to the vectorizer file saved in previous train step.
-#     """
-#     # Load vectorizer saved in previous step
-#     try:
-#         logger.info("Reading vectorizer from pickle file: %s", vectorizer_path)
-#         vectorizer_file = open(vectorizer_path, "rb")
-#     except FileNotFoundError as e:
-#         logger.error("File not found: %s", vectorizer_path)
-#         raise e
-#     else:
-#         try:
-#             vectorizer = pickle.load(vectorizer_file)
-#         except (EOFError, pickle.UnpicklingError) as e:
-#             logger.error("Error reading model from pickle file: %s",
-#                          vectorizer_file)
-#             raise e
-#         else:
-#             logger.info("Vectorizer object loaded.")
-#         finally:
-#             vectorizer_file.close()
-#     return vectorizer
 
 def verify_test_and_pred(y_test: pd.Series, y_pred: list) -> bool:
     """
@@ -249,8 +219,8 @@ def evaluate_wrapper(metrics: list,
     # ypred_output_dir.
     metrics_output_filename = kwargs_evaluate["metrics_output_filename"]
     if not os.path.exists(metrics_output_dir):
-        logger.warning("Output directory does not exist: %s. \
-            Creating new directory.", metrics_output_dir)
+        logger.warning("Output directory does not exist: %s. "
+                       "Creating new directory.", metrics_output_dir)
         os.makedirs(metrics_output_dir)
         logger.info("Created directory: %s",
                     metrics_output_dir)

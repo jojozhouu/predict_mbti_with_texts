@@ -6,11 +6,9 @@ import numpy as np
 
 from pandas.errors import ParserError
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import classification_report
 from sklearn.linear_model import LogisticRegression
 
 

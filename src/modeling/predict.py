@@ -2,7 +2,6 @@ import logging
 import os
 import pickle
 import re
-from typing import Tuple
 
 import pandas as pd
 from pandas.errors import ParserError
@@ -300,13 +299,12 @@ def predict_wrapper(model_folder_path: str, new_text_path: str, vectorizer_path:
         except KeyError as ke:
             logger.error("Errors reading posts column. Please check name of the target "
                          "column in dataset matches with what's been defined in config: %s", ke)
-        raise ke
+            raise ke
+        else:
+            new_text_vectorized = vectorizer.transform(posts).toarray()
     else:
         posts = new_text
-
-    # try:
-    new_text_vectorized = vectorizer.transform([posts]).toarray()
-    # TODO except KeyError as ke:
+        new_text_vectorized = vectorizer.transform([posts]).toarray()
 
     # Iterate over all the model files in the model_file_folder
     for model_filename in os.listdir(model_folder_path):

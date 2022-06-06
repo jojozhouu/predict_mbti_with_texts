@@ -1,10 +1,8 @@
-from datetime import datetime
 import logging.config
 import os
 import sqlite3
 import traceback
 
-import sqlalchemy.exc
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_session import Session
 from config.flaskconfig import SECRET_KEY, SESSION_TYPE
@@ -114,12 +112,16 @@ def show_result():
                                        **NLTK_DATA_PATH)
 
     # Predict with pre-trained model object
-    pred_result = predict.predict_wrapper(model_folder_path=MODEL_FOLDER,
-                                          new_text_path=cleaned_text,
-                                          vectorizer_path=VECTORIZER_PATH,
-                                          y_pred_output_dir=None,
-                                          is_string=True,
-                                          save_output=False)
+    try:
+        pred_result = predict.predict_wrapper(model_folder_path=MODEL_FOLDER,
+                                              new_text_path=cleaned_text,
+                                              vectorizer_path=VECTORIZER_PATH,
+                                              y_pred_output_dir=None,
+                                              is_string=True,
+                                              save_output=False)
+    except RecursionError as e:
+        logger.error("Recursion exceeds maximum when transposing using vectorizer. "
+                     "Consider generating a new vectorizer.  %s", e)
 
     # Retrieve prediction results and send to template for display
     result_I = pred_result["I"].values[0]

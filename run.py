@@ -76,6 +76,17 @@ if __name__ == '__main__':
                           default="config/config.yaml",
                           help="Path to the config yaml file.")
 
+    # Define arguments for downloading data from S3 if action == all
+    sp_model.add_argument("--data_file_path",
+                          default="data/raw/raw_forum.csv",
+                          help="Path to data file to upload to S3 bucket.")
+    sp_model.add_argument("--s3_bucket",
+                          default=S3_BUCKET,
+                          help="Path to S3 bucket directory to upload data to.")
+    sp_model.add_argument("--s3_path",
+                          default="raw/raw_forum.csv",
+                          help="Path to where the data file will be uploaded to in the specified S3 bucket.")
+
     # Define arguments if action == clean
     sp_model.add_argument("--raw_data",
                           default="data/raw/raw_forum.csv",
@@ -172,7 +183,10 @@ if __name__ == '__main__':
 
         elif args.action == "download_data":
             # download raw data from S3 bucket, if raw data does not exist locally
+            logger.info("Checking if the file already exists in local file system..."
+                        "If exists, skip download.")
             if not os.path.isfile(args.data_file_path):
+                print(args.data_file_path)
                 download_file_from_s3(
                     args.data_file_path, args.s3_bucket, args.s3_path)
 
@@ -199,6 +213,14 @@ if __name__ == '__main__':
         if "random_seed" in config:
             random.seed(config["random_seed"])
             logger.info("Set random seed to %d", config["random_seed"])
+
+        # action = "all", start from downloading data from S3
+        if args.action in ["all"]:
+            # download raw data from S3 bucket, if raw data does not exist locally
+            if not os.path.isfile(args.data_file_path):
+                print(args.data_file_path)
+                download_file_from_s3(
+                    args.data_file_path, args.s3_bucket, args.s3_path)
 
         # action = "clean", cleaning raw posts
         if args.action in ["clean", "all"]:
