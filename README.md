@@ -39,10 +39,10 @@ There are two types of sucess metrics.
 ## Instructions for using the code
 
 Before using the code, please make sure the following environmental variables are already sourced.
-    - SQLALCHEMY_DATABASE_URI
-    - AWS_ACCESS_KEY_ID
-    - AWS_SECRET_ACCESS_KEY
-    - S3_BUCKET
+- SQLALCHEMY_DATABASE_URI
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- S3_BUCKET
  
 Additionally, please make sure Northwestern VPN is connected.
 
@@ -55,7 +55,7 @@ Additionally, please make sure Northwestern VPN is connected.
 2. To upload a local file to S3, run the following command. Uploads will be performed if the file does not exist in the S3 bucket specified.
 
    ```bash
-   docker run -e S3_BUCKET -e \AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY --mount type=bind,source="$(pwd)"/,target=/app/ final-project run.py manage_s3 upload_data
+   docker run -e S3_BUCKET -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY --mount type=bind,source="$(pwd)"/,target=/app/ final-project run.py manage_s3 upload_data
    ```
 
 ### Creating database and ingesting data to RDS or SQLite database
