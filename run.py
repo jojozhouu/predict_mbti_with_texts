@@ -159,14 +159,14 @@ if __name__ == '__main__':
 
         elif args.action == "ingest_data":
             # Determine whether to truncate existing database
-            is_truncate = 0
+            to_truncate = 0
             if args.truncate_existing_db:
-                is_truncate = 1
+                to_truncate = 1
 
             # ingest data into RDS database
             post_manager = PostManager(engine_string=args.engine_string)
             post_manager.ingest_raw_data_file(
-                args.data_file_path, truncate=is_truncate)
+                args.data_file_path, truncate=to_truncate)
 
         elif args.action == "delete_db":
             # delete database in RDS
@@ -185,9 +185,12 @@ if __name__ == '__main__':
             logger.info("Checking if the file already exists in local file system..."
                         "If exists, skip download.")
             if not os.path.isfile(args.data_file_path):
-                print(args.data_file_path)
+                logger.info(
+                    "Raw data file not found in local, downloading from s3... %s", args.s3_bucket)
                 download_file_from_s3(
                     args.data_file_path, args.s3_bucket, args.s3_path)
+            logger.info(
+                "File exists, skipping download from s3.")
 
     # Define actions related to `model`
     elif sp_used == "model":

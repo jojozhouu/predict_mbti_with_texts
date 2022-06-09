@@ -211,6 +211,30 @@ def create_fit_vectorizer(train_posts: pd.Series, sw: list,
     return vectorizer
 
 
+def check_vectorizer(vectorizer: TfidfVectorizer) -> bool:
+    """Test whether the vectorizer is usable, by checking if it could transform 
+    a string without raising RecursionError error
+
+    Args:
+        vectorizer (:obj:`TfidfVectorizer`): Vectorizer to test
+
+    Returns:
+        True if the vectorizer is usable, False otherwise
+
+    Raises:
+        None
+    """
+    logger.info("Testing vectorizer...")
+    try:
+        vectorizer.transform(["test test"])
+    except RecursionError as e:
+        logger.error(
+            "Vectorizer is not usable. Creating a new vectorizer...")
+        return False
+    logger.info("Vectorizer is usable. Continue with training.")
+    return True
+
+
 def train_logit(train_posts: np.ndarray,
                 train_target: np.ndarray,
                 **kwargs_logit) -> LogisticRegression:
@@ -386,6 +410,18 @@ def train_wrapper(clean_data_path: str,
     posts_colname = kwargs_train["train_wrapper"]["posts_colname"]
     vectorizer = create_fit_vectorizer(
         train[posts_colname], stopwords, **kwargs_train["create_fit_vectorizer"])
+
+    # check if vectorizer is usable and create a new one if not, stop anyways if
+    # 5 vectorizers are created and the issue persists
+    iter = 0
+    while (not check_vectorizer(vectorizer)) and (iter <= 4):
+        vectorizer = create_fit_vectorizer(
+            train[posts_colname], stopwords, **kwargs_train["create_fit_vectorizer"])
+        iter += 1
+    if iter > 4:
+        logger.error("Vectorizer is not usable. It will raise RecursionError when transforming data. "
+                     "Please check the data.")
+        raise ValueError("Vectorizer is not usable. Please check the data.")
 
     # Save vectorizer to file
     save_vectorizer_to_file(

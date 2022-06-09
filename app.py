@@ -46,17 +46,17 @@ NLTK_DATA_PATH = app.config["NLTK_DATA_PATH"]
 
 @app.route('/')
 def home():
-    """Main view that displays all 16 MBTI types and a button to input_text page
+    """Main view that displays project headline and a button to input_text page
 
     Returns:
-        Rendered html template
+        Rendered index.html template
     """
     return render_template('index.html')
 
 
 @app.route('/input_text', methods=['Get', 'POST'])
 def input_text():
-    """View that process a text box for entering texts.
+    """View with a text box for entering texts.
 
     Returns:
         redirect to result page
@@ -93,16 +93,12 @@ def show_result():
                                        **NLTK_DATA_PATH)
 
     # Predict with pre-trained model object
-    try:
-        pred_result = predict.predict_wrapper(model_folder_path=MODEL_FOLDER,
-                                              new_text_path=cleaned_text,
-                                              vectorizer_path=VECTORIZER_PATH,
-                                              y_pred_output_dir=None,
-                                              is_string=True,
-                                              save_output=False)
-    except RecursionError as e:
-        logger.error("Recursion exceeds maximum when transposing using vectorizer. "
-                     "Consider generating a new vectorizer.  %s", e)
+    pred_result = predict.predict_wrapper(model_folder_path=MODEL_FOLDER,
+                                          new_text_path=cleaned_text,
+                                          vectorizer_path=VECTORIZER_PATH,
+                                          y_pred_output_dir=None,
+                                          is_string=True,
+                                          save_output=False)
 
     # Retrieve prediction results and send to template for display
     try:

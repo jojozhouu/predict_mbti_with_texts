@@ -7,9 +7,9 @@ import flask
 from flask_sqlalchemy import SQLAlchemy
 import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import TEXT, Column, Integer, String, func
+from sqlalchemy import TEXT, Column, Integer, String
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import ProgrammingError, OperationalError, SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import ProgrammingError, OperationalError, SQLAlchemyError
 
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ Base = declarative_base()
 
 
 class PostsWithLabel(Base):
-    """Data model to store a collection of posts from people and their known MBTI type"""
+    """Data model to store a collection of posts from people and their reported MBTI type"""
 
     __tablename__ = 'posts_for_training'
 
@@ -45,13 +45,20 @@ class TextsFromApp(Base):
 
 
 def create_db(engine_string: str) -> None:
-    """Create database in RDS with feature tables.
+    """Create database in RDS with `posts_for_training` and `posts_predicted` tables.
+
     Args:
         engine_string (`str`): engine string for database's creation.
+
     Returns:
         None
+
+    Raises:
+        ProgrammingError, OperationalError, SQLAlchemyError: Database creation fails, maybe because
+             VPN is not connected
+        AttributeError: If engine string is not valid
     """
-    # Connect to RDS
+    # Connect to database
     try:
         logger.info("Connecting to database...")
         engine = sqlalchemy.create_engine(engine_string)
@@ -65,7 +72,7 @@ def create_db(engine_string: str) -> None:
         sys.exit(1)
     else:
         try:
-            # Create schema
+            # Create tables in the database
             Base.metadata.create_all(engine)
             logger.info("Database created.")
         except OperationalError as e:
@@ -75,16 +82,23 @@ def create_db(engine_string: str) -> None:
 
 
 def delete_db(engine_string: str) -> None:
-    """Delete database in RDS .
+    """Delete database 
+
     Args:
         engine_string (`str`): engine string for database's deletion.
+
     Returns:
         None
+
+    Raises:
+        OperationalError: Database deletion fails, maybe because VPN is not connected.
     """
-    # The Base.metadata object collects and manages Table operations
+
+    # Connect to database
     logger.info("Deleting database...")
     engine = sqlalchemy.create_engine(engine_string)
 
+    # Drop all the tables in the database
     try:
         Base.metadata.drop_all(engine)
     except OperationalError as e:
@@ -96,16 +110,22 @@ def delete_db(engine_string: str) -> None:
 
 
 class PostManager:
-    """Creates a SQLAlchemy connection to the posts table.
-    Args:
-        app (:obj:`flask.app.Flask`): Flask app object for when connecting from
-            within a Flask app. Optional.
-        engine_string (`str`): SQLAlchemy engine string specifying which database
-            to write to. Follows the format
-    """
+    """Creates a SQLAlchemy connection to the posts table."""
 
     def __init__(self, app: Optional[flask.app.Flask] = None,
                  engine_string: Optional[str] = None):
+        """Initialize PostManager with either a Flask app or a SQLAlchemy engine string.
+
+        Args:
+            app (:obj:`flask.app.Flask`): Flask app object for when connecting from
+                within a Flask app.
+            engine_string (`str`): SQLAlchemy engine string specifying which database
+                to write to. 
+
+        Raises:
+            ValueError: If neither app nor engine_string is provided.
+
+        """
         if app:
             self.database = SQLAlchemy(app)
             self.session = self.database.session
@@ -121,10 +141,18 @@ class PostManager:
         """Closes SQLAlchemy session."""
         self.session.close()
 
-    def truncate(self, table) -> None:
+    def truncate(self, table: str) -> None:
         """Truncates the specified table.
+
+        Args:
+            table (`str`): Name of table class to truncate.
+
         Returns:
             None
+
+        Raises:
+            OperationalError: If table does not exist.
+            SQLAlchemyError: Errors when committing the truncate transaction.
         """
         logger.info("Truncating posts table")
         try:
@@ -143,12 +171,21 @@ class PostManager:
         finally:
             self.close()
 
-    def ingest_raw_data_file(self, file: str, truncate: int = 0) -> None:
+    def ingest_raw_data_file(self, file: str, truncate: bool = 0) -> None:
         """Ingests data from a local csv file into the posts table.
+
         Args:
             file (str): path to the csv file to ingest.
+            truncate (bool): whether to truncate the table before ingesting. Defaults to 0.
+
         Returns:
             None
+
+        Raises:
+            FileNotFoundError: If the file to ingest could not be found.
+            SQLAlchemyError: Errors when committing the ingest transaction.
+            OperationalError: If could not connect to database, maybe because VPN is not connected.
+            ProgrammingError: If the table to ingest could not be found.
         """
         # Truncate table if specified
         if truncate:
@@ -156,6 +193,7 @@ class PostManager:
 
         logger.info("Ingesting data")
         try:
+            # Read the local file to be ingested
             f = open(file, 'r', encoding='latin-1')
         except FileNotFoundError as fe:
             logger.error("Could not find file {}".format(file))
@@ -164,9 +202,11 @@ class PostManager:
             logger.info("Ingesting data from {}".format(file))
             next(f)
             cnt = 0
+            # Ingest the file line by line
             for line in f:
                 type, post = line.split(",", 1)
                 try:
+                    # Create a new post object and add it to the session
                     self.session.add(
                         PostsWithLabel(type=type, posts=post))
                 except SQLAlchemyError as e:
@@ -176,8 +216,6 @@ class PostManager:
                     self.session.rollback()
                 else:
                     cnt += 1
-                    # logger.debug(
-                    #     "Added record (type: %s, post: %s ...) to the session", type, post[:10])
 
             logger.info("Added %d records to the session", cnt)
 
@@ -204,12 +242,24 @@ class PostManager:
         finally:
             self.close()
 
-    def ingest_app_user_input(self, raw_text: str, cleaned_text: str, pred_type: str, truncate: int = 0) -> None:
-        """Ingests user input string from the web app into posts_predicted table
+    def ingest_app_user_input(self, raw_text: str, cleaned_text: str,
+                              pred_type: str, truncate: bool = 0) -> None:
+        """Ingests user input raw texts, cleaned texts, and the predicted MBTI type
+        from the web app into posts_predicted table
+
         Args:
-            file (str): path to the csv file to ingest.
+            raw_text (`str`): raw text from the user input.
+            cleaned_text (`str`): cleaned user input.
+            pred_type (`str`): predicted MBTI type from the user input.
+            truncate (`bool`): whether to truncate the table before ingesting. Defaults to False.
+
         Returns:
             None
+
+        Raises:
+            SQLAlchemyError: Errors when committing the ingest transaction.
+            OperationalError: If could not connect to database, maybe because VPN is not connected.
+            ProgrammingError: If the table to ingest could not be found.
         """
         # Truncate table if specified
         if truncate:
