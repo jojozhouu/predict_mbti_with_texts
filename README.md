@@ -34,3 +34,104 @@ There are two types of sucess metrics.
 
 - **Business Metrics** \
   The business metrics to be measured in the long term will be related to user engagement. It is expected that if users believe the model is predicting their types accurately, they will share the links to their friends and re-use the tool more frequently. Thus, the two metrics will be _number of distinct users using the tool per week_ (measuring popularity) and _average number of visits per user_ (measuring stickiness).
+
+
+## Instructions for using the code
+
+Before using the code, please make sure the following environmental variables are already sourced.
+- SQLALCHEMY_DATABASE_URI
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- S3_BUCKET
+ 
+Additionally, please make sure Northwestern VPN is connected.
+
+### Uploading and downloading data to/from S3
+1. Build a docker image called `final-project` for managing database connection, managing S3, and running the model pipeline. If the image has been built from previous step, skip this step.
+
+   ```bash
+   docker build -f dockerfiles/Dockerfile -t final-project .
+   ```
+2. To upload a local file to S3, run the following command. Uploads will be performed if the file does not exist in the S3 bucket specified.
+
+   ```bash
+   docker run -e S3_BUCKET -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY --mount type=bind,source="$(pwd)"/,target=/app/ final-project run.py manage_s3 upload_data
+   ```
+
+### Creating database and ingesting data to RDS or SQLite database
+1. Build a docker image called `final-project` for managing database connection, managing S3, and running the model pipeline. If the image has been built from previous step, skip this step.
+
+   ```bash
+   docker build -f dockerfiles/Dockerfile -t final-project .
+   ```
+2. To create a database at the given SQLALCHEMY_DATABASE_URI, run the following command.
+   
+   ```bash
+   docker run -e SQLALCHEMY_DATABASE_URI  --mount type=bind,source="$(pwd)"/,target=/app/ final-project run.py manage_rds create_db
+   ```
+3. To ingest the raw data file to the given SQLALCHEMY_DATABASE_URI, run the following command.
+
+   ```bash
+   docker run -e SQLALCHEMY_DATABASE_URI  --mount type=bind,source="$(pwd)"/,target=/app/ final-project run.py manage_rds ingest_data
+   ```
+4. To delete the database at the given SQLALCHEMY_DATABASE_URI, run the following command.
+   
+   ```bash
+   docker run -e SQLALCHEMY_DATABASE_URI  --mount type=bind,source="$(pwd)"/,target=/app/ final-project run.py manage_rds delete_db
+   ```
+
+### Model training pipeline (run.py)
+
+1. Build a docker image called `final-project` for managing database connection, managing S3, and running the model pipeline. If the image has been built from previous step, skip this step.
+
+   ```bash
+   docker build -f dockerfiles/Dockerfile -t final-project .
+   ```
+
+2. To run each step separately, run the following docker command. The last argument could be changed to perform different steps, but the arguments need to be run in order.
+    - acquiring data from S3: `acquire`
+    - cleaning texts data: `clean`
+    - training models: `train`
+    - predicting test set or new texts data: `predict`
+    - evaluating on test set: `evaluate`
+ 
+   ```bash
+   docker run -e SQLALCHEMY_DATABASE_URI --mount type=bind,source="$(pwd)"/data,target=/app/data final-project model <step>
+   ```
+   
+   For example, to acquire data, the complete docker command will be:
+   ```bash
+   docker run -e SQLALCHEMY_DATABASE_URI --mount type=bind,source="$(pwd)"/data,target=/app/data final-project model acquire
+   ```
+
+3. To run the entire model training pipeline at once, run the following docker command.
+    
+   ```bash
+   docker run -e SQLALCHEMY_DATABASE_URI --mount type=bind,source="$(pwd)"/data,target=/app/data final-project model all
+   ```
+
+### Unit tests
+
+1. Build a docker image called `final-project-tests` to run unit tests on the `/src` scripts, `run.py`, and `app.py`.
+    
+    ```bash
+    docker build -f dockerfiles/Dockerfile.test -t final-project-tests .
+    ```
+2. To run the tests in the `/tests` folder, run the following command.
+
+    ```bash
+    docker run final-project-tests
+    ```
+
+### Using the Flask app (app.py)
+
+1. Build docker image called `final-project-app` to use the web app via docker.
+    
+    ```bash
+    docker build -f dockerfiles/Dockerfile.app -t final-project-app .
+    ```
+2. To run the web app, run the following command, and then enter address as "localhost:5000" in the browser. For example, on Windows it will be "http://127.0.0.1:5000/"
+
+    ```
+    docker run -e SQLALCHEMY_DATABASE_URI -p 5000:5000 final-project-app
+    ```
