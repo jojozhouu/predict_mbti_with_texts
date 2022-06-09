@@ -6,7 +6,11 @@ by Qingyang "Jojo" Zhou @jojozhouu
 
 - [Project Charter](#Project-Charter)
 - [Instructions for using the code](#Instructions-for-using-the-code)
-  - [Uploading and downloading data to/from S3](#Uploading-and-downloading-data-to/from-S3)
+  - [Uploading and downloading data with S3](#Uploading-and-downloading-data-with-S3)
+  - [Creating database and ingesting data to RDS or SQLite database](#Creating-database-and-ingesting-data-to-RDS-or-SQLite-database)
+  - [Model training pipeline](#Model-training-pipeline)
+  - [Unit tests](#Unit-tests)
+  - [Using the Flask app](#Using-the-Flask-app)
 
 ## Project Charter
 
@@ -48,7 +52,7 @@ Before using the code, please make sure the following environmental variables ar
  
 Additionally, please make sure Northwestern VPN is connected.
 
-### Uploading and downloading data to/from S3
+### Uploading and downloading data with S3
 1. Build a docker image called `final-project` for managing database connection, managing S3, and running the model pipeline. If the image has been built from previous step, skip this step.
 
    ```bash
@@ -82,7 +86,7 @@ Additionally, please make sure Northwestern VPN is connected.
    docker run -e SQLALCHEMY_DATABASE_URI  --mount type=bind,source="$(pwd)"/,target=/app/ final-project run.py manage_rds delete_db
    ```
 
-### Model training pipeline (run.py)
+### Model training pipeline
 
 1. Build a docker image called `final-project` for managing database connection, managing S3, and running the model pipeline. If the image has been built from previous step, skip this step.
 
@@ -125,7 +129,7 @@ Additionally, please make sure Northwestern VPN is connected.
     docker run final-project-tests
     ```
 
-### Using the Flask app (app.py)
+### Using the Flask app
 
 1. Build docker image called `final-project-app` to use the web app via docker.
     
