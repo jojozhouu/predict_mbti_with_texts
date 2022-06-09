@@ -161,13 +161,13 @@ def save_split_to_files(train: pd.DataFrame,
                 split_output_dir)
 
 
-def create_fit_vectorizer(train_posts: pd.Series, sw: list,
+def create_fit_vectorizer(train_posts: pd.Series, stopwords: list,
                           **kwargs_tfidf_vec) -> TfidfVectorizer:
     """Define the TfidfVectorizer object and fit it to the training set.
 
     Args:
         train_posts (:obj:`pandas.Series`): Training set to fit the vectorizer on
-        sw (`list`): List of stopwords.
+        stopwords (`list`): List of stopwords.
         kwargs_tfidf_vec (`dict`): Dictionary `create_fit_vectorizer` defined in the config.yaml
             - max_features (`int`): Maximum number of features to use.
 
@@ -192,7 +192,7 @@ def create_fit_vectorizer(train_posts: pd.Series, sw: list,
 
     # Define the TfidfVectorizer object
     try:
-        vectorizer = TfidfVectorizer(max_features=5000, stop_words=sw)
+        vectorizer = TfidfVectorizer(max_features=5000, stop_words=stopwords)
     except TypeError as e:
         logger.error("Error creating vectorizer: %s. Please check for "
                      "errors like unrecognized arguments ", e)
@@ -212,7 +212,7 @@ def create_fit_vectorizer(train_posts: pd.Series, sw: list,
 
 
 def check_vectorizer(vectorizer: TfidfVectorizer) -> bool:
-    """Test whether the vectorizer is usable, by checking if it could transform 
+    """Test whether the vectorizer is usable, by checking if it could transform
     a string without raising RecursionError error
 
     Args:
@@ -227,7 +227,7 @@ def check_vectorizer(vectorizer: TfidfVectorizer) -> bool:
     logger.info("Testing vectorizer...")
     try:
         vectorizer.transform(["test test"])
-    except RecursionError as e:
+    except RecursionError:
         logger.error(
             "Vectorizer is not usable. Creating a new vectorizer...")
         return False
@@ -250,12 +250,12 @@ def train_logit(train_posts: np.ndarray,
         fitted LogisticRegression object.
 
     Raises:
-        TypeError: 
-            - Errors in specifying LogisticRegression() parameters, such as 
+        TypeError:
+            - Errors in specifying LogisticRegression() parameters, such as
                 unrecognized arguments
             - if C is not a positive float
         ValueError: Errors in specifying LogisticRegression() parameters,
-            such as invalid values 
+            such as invalid values
     """
     logger.debug("Defining LogisticRegression object.")
     # Validate parameters, C must be a positive float
@@ -316,8 +316,8 @@ def save_model_to_file(logit: LogisticRegression,
     filepath = os.path.join(
         model_output_dir, model_output_filename)
     try:
-        with open(filepath + ".pkl", "wb") as f:
-            pickle.dump(logit, f)
+        with open(filepath + ".pkl", "wb") as file:
+            pickle.dump(logit, file)
     except (IOError, OSError) as e:
         logger.error(
             "Error saving model as pickle file. Please check permissions. %s", e)
@@ -347,8 +347,8 @@ def save_vectorizer_to_file(vectorizer: TfidfVectorizer,
     # Validate vectorizer_output_dir exists. If not, create a new directory at
     # vectorizer_output_dir.
     if not os.path.exists(vectorizer_output_dir):
-        logger.warning("Output directory does not exist: %s. \
-            New directory will be created.", vectorizer_output_dir)
+        logger.warning("Output directory does not exist: %s. "
+                       "New directory will be created.", vectorizer_output_dir)
         os.makedirs(vectorizer_output_dir)
         logger.info("Created directory: %s",
                     vectorizer_output_dir)
@@ -357,8 +357,8 @@ def save_vectorizer_to_file(vectorizer: TfidfVectorizer,
     filepath = os.path.join(
         vectorizer_output_dir, vectorizer_filename)
     try:
-        with open(filepath + ".pkl", "wb") as f:
-            pickle.dump(vectorizer, f)
+        with open(filepath + ".pkl", "wb") as file:
+            pickle.dump(vectorizer, file)
     except (IOError, OSError) as e:
         logger.error(
             "Error saving vectorizer as pickle file. Please check permissions. %s", e)
@@ -374,7 +374,7 @@ def train_wrapper(clean_data_path: str,
     """Wrapper function for the training process.
 
     Cleaned data is read from the specified path. It is then split into
-    training and test sets. The vectorizer is then fit to the training set, and 
+    training and test sets. The vectorizer is then fit to the training set, and
     the training set is transformed to be fed into the logistic model.
     1 model is created for each MBTI dimension. So, there will be 4 models in
     total that are saved in the specified path.
@@ -413,12 +413,12 @@ def train_wrapper(clean_data_path: str,
 
     # check if vectorizer is usable and create a new one if not, stop anyways if
     # 5 vectorizers are created and the issue persists
-    iter = 0
-    while (not check_vectorizer(vectorizer)) and (iter <= 4):
+    iter_cnt = 0
+    while (not check_vectorizer(vectorizer)) and (iter_cnt <= 4):
         vectorizer = create_fit_vectorizer(
             train[posts_colname], stopwords, **kwargs_train["create_fit_vectorizer"])
-        iter += 1
-    if iter > 4:
+        iter_cnt += 1
+    if iter_cnt > 4:
         logger.error("Vectorizer is not usable. It will raise RecursionError when transforming data. "
                      "Please check the data.")
         raise ValueError("Vectorizer is not usable. Please check the data.")

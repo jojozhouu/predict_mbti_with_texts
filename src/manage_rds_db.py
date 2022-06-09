@@ -19,7 +19,7 @@ Base = declarative_base()
 class PostsWithLabel(Base):
     """Data model to store a collection of posts from people and their reported MBTI type"""
 
-    __tablename__ = 'posts_for_training'
+    __tablename__ = "posts_for_training"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     type = Column(String(4), unique=False, nullable=False)
@@ -33,7 +33,7 @@ class TextsFromApp(Base):
     """Data model to store raw user input from web app and
     their predicted MBTI type from the trained model"""
 
-    __tablename__ = 'posts_predicted'
+    __tablename__ = "posts_predicted"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     predicted_type = Column(String(4), unique=False, nullable=True)
@@ -82,7 +82,7 @@ def create_db(engine_string: str) -> None:
 
 
 def delete_db(engine_string: str) -> None:
-    """Delete database 
+    """Delete database
 
     Args:
         engine_string (`str`): engine string for database's deletion.
@@ -120,7 +120,7 @@ class PostManager:
             app (:obj:`flask.app.Flask`): Flask app object for when connecting from
                 within a Flask app.
             engine_string (`str`): SQLAlchemy engine string specifying which database
-                to write to. 
+                to write to.
 
         Raises:
             ValueError: If neither app nor engine_string is provided.
@@ -151,17 +151,12 @@ class PostManager:
             None
 
         Raises:
-            OperationalError: If table does not exist.
-            SQLAlchemyError: Errors when committing the truncate transaction.
+            OperationalError: Errors when committing the truncate transaction.
         """
         logger.info("Truncating posts table")
         try:
             self.session.query(table).delete()
             self.session.commit()
-        except SQLAlchemyError as e:
-            logger.error("""An error occur when truncating the table.
-                             Transaction rolled back, %s""", e)
-            self.session.rollback()
         except OperationalError as e:
             logger.error("""Could not truncate table.
                              Does the table to be truncated exist? %s""", e)
@@ -171,11 +166,11 @@ class PostManager:
         finally:
             self.close()
 
-    def ingest_raw_data_file(self, file: str, truncate: bool = 0) -> None:
+    def ingest_raw_data_file(self, raw_data_file: str, truncate: bool = 0) -> None:
         """Ingests data from a local csv file into the posts table.
 
         Args:
-            file (str): path to the csv file to ingest.
+            raw_data_file (str): path to the csv file to ingest.
             truncate (bool): whether to truncate the table before ingesting. Defaults to 0.
 
         Returns:
@@ -194,17 +189,18 @@ class PostManager:
         logger.info("Ingesting data")
         try:
             # Read the local file to be ingested
-            f = open(file, 'r', encoding='latin-1')
-        except FileNotFoundError as fe:
-            logger.error("Could not find file {}".format(file))
+            file = open(raw_data_file, "r", encoding="latin-1")
+        except FileNotFoundError:
+            logger.error("Could not find file %s", raw_data_file)
             sys.exit(1)
         else:
-            logger.info("Ingesting data from {}".format(file))
-            next(f)
+            logger.info("Ingesting data from %s", raw_data_file)
+            next(file)
             cnt = 0
             # Ingest the file line by line
-            for line in f:
-                type, post = line.split(",", 1)
+            for line in file:
+                type, post = line.split(  # pylint: disable=redefined-builtin
+                    ",", 1)
                 try:
                     # Create a new post object and add it to the session
                     self.session.add(
@@ -220,10 +216,11 @@ class PostManager:
             logger.info("Added %d records to the session", cnt)
 
         finally:
-            f.close()
+            file.close()
 
         # Commit the session
         try:
+            logger.info("Committing session...It could take 5-6 minutes...")
             start_time = time()
             self.session.commit()
         except OperationalError as e:
@@ -232,13 +229,13 @@ class PostManager:
             self.session.rollback()
         except ProgrammingError as e:
             logger.error("""Could not find the table. Transaction rolled back.
-            Please make sure the table exists.""")
-        except Exception as e:
+            Please make sure the tables exist.""")
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("Exiting due to error: %s", e)
             self.session.rollback()
         else:
             logger.info("Ingestion from %s complete. Took %.2f seconds",
-                        file, time() - start_time)
+                        raw_data_file, time() - start_time)
         finally:
             self.close()
 
@@ -290,7 +287,7 @@ class PostManager:
         except ProgrammingError as e:
             logger.error("""Could not find the table. Transaction rolled back.
             Please make sure the table exists.""")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("Exiting due to error: %s", e)
             self.session.rollback()
         else:

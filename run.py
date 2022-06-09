@@ -12,15 +12,15 @@ from src.modeling.evaluate import evaluate_wrapper
 from src.modeling.predict import predict_wrapper
 from src.modeling.train import train_wrapper
 
-logging.config.fileConfig('config/logging/local.conf')
+logging.config.fileConfig("config/logging/local.conf")
 logger = logging.getLogger()
 
 # read config file instead of hardcoding
-SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI')
-S3_BUCKET = os.environ.get('S3_BUCKET')
+SQLALCHEMY_DATABASE_URI = os.environ.get("SQLALCHEMY_DATABASE_URI")
+S3_BUCKET = os.environ.get("S3_BUCKET")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     # Add parsers for both creating a database and adding songs to it
     parser = argparse.ArgumentParser(
@@ -159,14 +159,14 @@ if __name__ == '__main__':
 
         elif args.action == "ingest_data":
             # Determine whether to truncate existing database
-            to_truncate = 0
+            TO_TRUNCATE = 0
             if args.truncate_existing_db:
-                to_truncate = 1
+                TO_TRUNCATE = 1
 
             # ingest data into RDS database
             post_manager = PostManager(engine_string=args.engine_string)
             post_manager.ingest_raw_data_file(
-                args.data_file_path, truncate=to_truncate)
+                args.data_file_path, truncate=TO_TRUNCATE)
 
         elif args.action == "delete_db":
             # delete database in RDS
@@ -187,10 +187,21 @@ if __name__ == '__main__':
             if not os.path.isfile(args.data_file_path):
                 logger.info(
                     "Raw data file not found in local, downloading from s3... %s", args.s3_bucket)
+
+                # Create directory if it doesn't exist
+                if not os.path.exists(os.path.split(args.data_file_path)[0]):
+                    logger.warning("Output directory does not exist: %s. "
+                                   "New directory will be created.", os.path.split(args.data_file_path)[0])
+                    os.makedirs(os.path.split(args.data_file_path)[0])
+                    logger.debug("Created directory: %s",
+                                 os.path.split(args.data_file_path)[0])
+
+                # Download file from S3
                 download_file_from_s3(
                     args.data_file_path, args.s3_bucket, args.s3_path)
-            logger.info(
-                "File exists, skipping download from s3.")
+            else:
+                logger.info(
+                    "File exists, skipping download from s3.")
 
     # Define actions related to `model`
     elif sp_used == "model":
@@ -222,6 +233,16 @@ if __name__ == '__main__':
             if not os.path.isfile(args.data_file_path):
                 logger.info(
                     "Raw data file not found in local, downloading from s3... %s", args.s3_bucket)
+
+                # Create directory if it doesn't exist
+                if not os.path.exists(os.path.split(args.data_file_path)[0]):
+                    logger.warning("Output directory does not exist: %s. "
+                                   "New directory will be created.", os.path.split(args.data_file_path)[0])
+                    os.makedirs(os.path.split(args.data_file_path)[0])
+                    logger.debug("Created directory: %s",
+                                 os.path.split(args.data_file_path)[0])
+
+                # Download file from S3
                 download_file_from_s3(
                     args.data_file_path, args.s3_bucket, args.s3_path)
             else:

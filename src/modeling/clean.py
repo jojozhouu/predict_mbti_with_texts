@@ -17,7 +17,7 @@ wnl = WordNetLemmatizer()
 
 def check_dl_nltk_data(**kwargs_nltk_dl) -> None:
     """
-    Check if the NLTK stopwords, wordnet, omw-1.4 and punkt are downloaded. 
+    Check if the NLTK stopwords, wordnet, omw-1.4 and punkt are downloaded.
     If not, download them.
 
     Args:
@@ -38,41 +38,41 @@ def check_dl_nltk_data(**kwargs_nltk_dl) -> None:
     # Try to find packages in nltk data folder. If not found, download them
     # Check for stopwords
     try:
-        nltk.data.find('stopwords')
+        nltk.data.find("stopwords")
     except LookupError:
         logger.info("NLTK stopwords is not downloaded. Downloading...")
-        nltk.download('stopwords', kwargs_nltk_dl["download_dir"])
+        nltk.download("stopwords", kwargs_nltk_dl["download_dir"])
     else:
         logger.info("NLTK stopwords is already downloaded.")
 
     # Check for wordnet
     logger.info("Checking if NLTK wordnet is downloaded.")
     try:
-        nltk.data.find('wordnet')
+        nltk.data.find("wordnet")
     except LookupError:
         logger.info(
             "NLTK wordnet is not downloaded. Downloading...")
-        nltk.download('wordnet', kwargs_nltk_dl["download_dir"])
+        nltk.download("wordnet", kwargs_nltk_dl["download_dir"])
     else:
         logger.info("NLTK wordnet are already downloaded.")
 
     # Check for omw-1.4
     logger.info("Checking if NLTK omw-1.4 is downloaded.")
     try:
-        nltk.data.find('omw-1.4')
+        nltk.data.find("omw-1.4")
     except LookupError:
         logger.info("NLTK omw-1.4 is not downloaded. Downloading...")
-        nltk.download('omw-1.4', kwargs_nltk_dl["download_dir"])
+        nltk.download("omw-1.4", kwargs_nltk_dl["download_dir"])
     else:
         logger.info("NLTK omw-1.4 is already downloaded.")
 
     # Check for punkt
     logger.info("Checking if NLTK punkt is downloaded.")
     try:
-        nltk.data.find('punkt')
+        nltk.data.find("punkt")
     except LookupError:
         logger.info("NLTK punkt is not downloaded. Downloading...")
-        nltk.download('punkt', kwargs_nltk_dl["download_dir"])
+        nltk.download("punkt", kwargs_nltk_dl["download_dir"])
     else:
         logger.info("NLTK punkt is already downloaded.")
 
@@ -81,7 +81,7 @@ def read_raw_data(raw_data_path: str) -> pd.DataFrame:
     """Read raw data stored in the given path, return a pandas DataFrame.
 
     Args:
-        read_raw_data (`str`): Path to the raw data with two 
+        read_raw_data (`str`): Path to the raw data with two
             columns `type` and `posts`.
 
     Returns:
@@ -99,12 +99,12 @@ def read_raw_data(raw_data_path: str) -> pd.DataFrame:
     if raw_data_path.endswith(".csv"):
         try:
             raw_data = pd.read_csv(raw_data_path, encoding="ISO-8859-1")
-        except FileNotFoundError as fe:
-            logger.error("File not found: %s", fe)
-            raise fe
-        except ParserError as pe:
+        except FileNotFoundError as e:
+            logger.error("File not found: %s", e)
+            raise e
+        except ParserError as e:
             logger.error("Error parsing data from %s", raw_data_path)
-            raise pe
+            raise e
         except Exception as e:
             logger.error("Unknown error reading data from %s", raw_data_path)
             raise e
@@ -174,10 +174,10 @@ def uppercase_types(data: pd.DataFrame) -> pd.DataFrame:
 
 def create_binary_target(data: pd.DataFrame) -> pd.DataFrame:
     """Convert the column of 4-dimension MBTI type to 4 columns of binary
-    types. 
+    types.
 
-    For example, `INTJ` will be converted to 4 columns, with `I`=1, `S`=0, 
-    `F`=0, and `J`=1. 
+    For example, `INTJ` will be converted to 4 columns, with `I`=1, `S`=0,
+    `F`=0, and `J`=1.
 
     Args:
         data (`pandas.DataFrame`): DataFrame to create binary target columns.
@@ -202,7 +202,7 @@ def create_binary_target(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def define_stopwords() -> set:
-    """Define stopwords as the union of the stopwords in the NLTK wordnet and 
+    """Define stopwords as the union of the stopwords in the NLTK wordnet and
     stopwords with punctuation removed.
 
     Args:
@@ -216,18 +216,18 @@ def define_stopwords() -> set:
     """
     logger.debug("Defining stopwords.")
     # Get stopwords from NLTK wordnet
-    sw_reg = nltk.corpus.stopwords.words('english')
+    sw_reg = nltk.corpus.stopwords.words("english")
 
     # Get stopwords from NLTK wordnet, but with punctuation removed
-    sw_no_punc = re.sub('[' + re.escape(string.punctuation) + ']', '',
-                        ' '.join(sw_reg)).split()
+    sw_no_punc = re.sub("[" + re.escape(string.punctuation) + "]", "",
+                        " ".join(sw_reg)).split()
 
     # Combine the two lists into a set
-    sw = set(sw_reg + sw_no_punc)
+    stopwords = set(sw_reg + sw_no_punc)
 
     logger.debug("Successfully defined stopwords.")
 
-    return sw
+    return stopwords
 
 
 def replace_url_to_link(txt: str) -> str:
@@ -240,7 +240,7 @@ def replace_url_to_link(txt: str) -> str:
         The text with URLs replaced.
     """
     txt = re.sub(
-        'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', "link", txt)
+        "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", "link", txt)
 
     return txt
 
@@ -254,22 +254,22 @@ def remove_punc(txt: str) -> str:
     Returns:
         Text with punctuation removed.
     """
-    txt = re.sub('[' + re.escape(string.punctuation) + ']', '', txt)
+    txt = re.sub("[" + re.escape(string.punctuation) + "]", "", txt)
 
     return txt
 
 
-def remove_stopwords(txt: str, sw: set) -> str:
+def remove_stopwords(txt: str, stopwords: set) -> str:
     """Remove stopwords.
 
     Args:
         text (`str`): Text to remove stopwords.
-        sw (`set`): Set of stopwords.
+        stopwords (`set`): Set of stopwords.
 
     Returns:
         Text with stopwords removed.
     """
-    txt = ' '.join([w for w in txt if w not in sw])
+    txt = " ".join([w for w in txt if w not in stopwords])
 
     return txt
 
@@ -284,9 +284,9 @@ def lemmatize_all(word: str) -> str:
         Lemmatized word.
     """
     # lemmatize a word with adjective, verb, and noun speech tags
-    word = wnl.lemmatize(word, 'a')
-    word = wnl.lemmatize(word, 'v')
-    word = wnl.lemmatize(word, 'n')
+    word = wnl.lemmatize(word, "a")
+    word = wnl.lemmatize(word, "v")
+    word = wnl.lemmatize(word, "n")
     return word
 
 
@@ -368,9 +368,9 @@ def save_stopwords_to_file(stopwords: set,
         stopwords_output_dir,
         kwargs_save_stopwords["stopwords_output_filename"]) + ".csv"
     try:
-        with open(filepath, 'w') as f:
+        with open(filepath, "w", encoding="utf-8") as file:
             for stopword in stopwords:
-                f.write("%s\n" % stopword)
+                file.write(f"{stopword}\n")
     except (IOError, OSError) as e:
         logger.error("Failed to save stopwords to file: %s", filepath)
         raise e
@@ -426,7 +426,7 @@ def clean_wrapper(raw_data: str,
         num_records = 1
 
     # Define stopwords
-    sw = define_stopwords()
+    stopwords = define_stopwords()
 
     logger.info("Cleaning data...It may take 2-3 minutes.")
     for i in range(0, num_records):
@@ -444,13 +444,13 @@ def clean_wrapper(raw_data: str,
         text = remove_punc(text)
 
         # Convert all words to lower cases
-        text = re.sub(' +', ' ', text).lower()
+        text = re.sub(" +", " ", text).lower()
 
         # Lemmatize all words.
         text = list(map(lemmatize_all, text.split(" ")))
 
         # Remove stopwords.
-        text = remove_stopwords(text, sw)
+        text = remove_stopwords(text, stopwords)
 
         if not is_new_data:
             # Update the cleaned text in the raw_data dataframe.
@@ -465,11 +465,11 @@ def clean_wrapper(raw_data: str,
                                 **kwargs_clean["save_clean_data_to_file"])
 
         # Save stopwords to local system.
-        save_stopwords_to_file(sw, **kwargs_clean["save_stopwords_to_file"])
+        save_stopwords_to_file(
+            stopwords, **kwargs_clean["save_stopwords_to_file"])
 
     logger.debug("Successfully cleaned text.")
 
     if not is_new_data:
         return data
-    else:
-        return text
+    return text

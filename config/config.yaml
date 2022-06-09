@@ -28,7 +28,6 @@ predict:
   predict_wrapper:
     posts_colname: posts
     y_pred_filename_prefix: prediction
-
 evaluate:
   evaluate_wrapper:
     metrics_output_filename: metric

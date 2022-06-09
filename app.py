@@ -2,9 +2,7 @@ import logging.config
 
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_session import Session
-
 from src.modeling import clean, predict
-import config.flaskconfig as config
 from src.manage_rds_db import PostManager
 
 # Initialize the Flask application
@@ -12,7 +10,7 @@ app = Flask(__name__, template_folder="app/templates",
             static_folder="app/static")
 
 # Configure flask app from flask_config.py
-app.config.from_pyfile('config/flaskconfig.py')
+app.config.from_pyfile("config/flaskconfig.py")
 
 # Set up flask session
 SESSION_TYPE = app.config["SESSION_TYPE"]
@@ -24,12 +22,12 @@ Session(app)
 logging.config.fileConfig(app.config["LOGGING_CONFIG"])
 logger = logging.getLogger(app.config["APP_NAME"])
 logger.debug(
-    'Web app should be viewable at %s:%s if docker run command maps local '
-    'port to the same port as configured for the Docker container '
-    'in config/flaskconfig.py (e.g. `-p 5000:5000`). Otherwise, go to the '
-    'port defined on the left side of the port mapping '
-    '(`i.e. -p THISPORT:5000`). If you are running from a Windows machine, '
-    'go to 127.0.0.1 instead of 0.0.0.0.', app.config["HOST"], app.config["PORT"])
+    "Web app should be viewable at %s:%s if docker run command maps local "
+    "port to the same port as configured for the Docker container "
+    "in config/flaskconfig.py (e.g. `-p 5000:5000`). Otherwise, go to the "
+    "port defined on the left side of the port mapping "
+    "(`i.e. -p THISPORT:5000`). If you are running from a Windows machine, "
+    "go to 127.0.0.1 instead of 0.0.0.0.", app.config["HOST"], app.config["PORT"])
 
 # Initialize the database session
 post_manager = PostManager(app)
@@ -44,34 +42,34 @@ VECTORIZER_PATH = app.config["VECTORIZER_PATH"]
 NLTK_DATA_PATH = app.config["NLTK_DATA_PATH"]
 
 
-@app.route('/')
+@app.route("/")
 def home():
     """Main view that displays project headline and a button to input_text page
 
     Returns:
         Rendered index.html template
     """
-    return render_template('index.html')
+    return render_template("index.html")
 
 
-@app.route('/input_text', methods=['Get', 'POST'])
+@app.route("/input_text", methods=["Get", "POST"])
 def input_text():
     """View with a text box for entering texts.
 
     Returns:
         redirect to result page
     """
-    if request.method == 'POST':
+    if request.method == "POST":
         # Get the text from the text box
-        text = request.form.get('text')
+        text = request.form.get("text")
         session["text"] = text
 
-        return redirect(url_for('show_result'))
+        return redirect(url_for("show_result"))
 
     return render_template("search.html")
 
 
-@app.route("/result", methods=['GET', 'POST'])
+@app.route("/result", methods=["GET", "POST"])
 def show_result():
     """View that displays the result of the text prediction.
 
@@ -80,10 +78,10 @@ def show_result():
     """
     # Get the text from the /input_text route
     try:
-        text = session.get('text', None)
+        text = session.get("text", None)
     except TypeError:
         logger.error("Failed to detect text entered.")
-        return render_template('error.html')
+        return render_template("error.html")
 
     # Process the text
     cleaned_text = clean.clean_wrapper(raw_data=text,
@@ -102,35 +100,35 @@ def show_result():
 
     # Retrieve prediction results and send to template for display
     try:
-        result_I = pred_result["I"].values[0]
+        result_i = pred_result["I"].values[0]
     except UnboundLocalError as e:
         logger.error(
             "Failed to detect prediction result. Maybe vectorizer is not successfully generated. %s", e)
-        return render_template('error.html')
-    result_S = pred_result["S"].values[0]
-    result_F = pred_result["F"].values[0]
-    result_J = pred_result["J"].values[0]
+        return render_template("error.html")
+    result_s = pred_result["S"].values[0]
+    result_f = pred_result["F"].values[0]
+    result_j = pred_result["J"].values[0]
 
     # Combine results to get a single MBTI type
-    IorE = "I" if result_I > 0.5 else "E"
-    SorN = "S" if result_S > 0.5 else "N"
-    ForT = "F" if result_F > 0.5 else "T"
-    JorP = "J" if result_J > 0.5 else "P"
-    mbti_pred = IorE + SorN + ForT + JorP
+    i_or_e = "I" if result_i > 0.5 else "E"
+    s_or_n = "S" if result_s > 0.5 else "N"
+    f_or_t = "F" if result_f > 0.5 else "T"
+    j_or_p = "J" if result_j > 0.5 else "P"
+    mbti_pred = i_or_e + s_or_n + f_or_t + j_or_p
 
     # Save raw user input, cleaned text, and predicted type to RDS database
     logger.info("Saving user input to RDS database")
     post_manager.ingest_app_user_input(raw_text=text, cleaned_text=cleaned_text,
                                        pred_type=mbti_pred, truncate=0)
 
-    return render_template('result.html',
+    return render_template("result.html",
                            mbti_pred=mbti_pred,
-                           result_I=result_I,
-                           result_S=result_S,
-                           result_F=result_F,
-                           result_J=result_J)
+                           result_I=result_i,
+                           result_S=result_s,
+                           result_F=result_f,
+                           result_J=result_j)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=app.config["DEBUG"], port=app.config["PORT"],
             host=app.config["HOST"])

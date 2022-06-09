@@ -4,7 +4,6 @@ import os
 import pandas as pd
 from pandas.errors import ParserError
 from sklearn.metrics import confusion_matrix, classification_report
-from sklearn.preprocessing import LabelEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +26,12 @@ def read_test_from_path(test_path: str) -> pd.DataFrame:
     try:
         test = pd.read_csv(test_path)
         logger.info("y_test loaded from %s.", test_path)
-    except FileNotFoundError as fe:
+    except FileNotFoundError as e:
         logger.error("File not found: %s", test_path)
-        raise fe
-    except ParserError as pe:
+        raise e
+    except ParserError as e:
         logger.error("Error parsing data from %s", test_path)
-        raise pe
+        raise e
     except Exception as e:
         logger.error("Unknown error reading data from %s", test_path)
         raise e
@@ -59,12 +58,12 @@ def read_pred_from_path(y_pred_path: str) -> list:
     try:
         y_pred = pd.read_csv(y_pred_path)
         logger.info("y_pred loaded from %s.", y_pred_path)
-    except FileNotFoundError as fe:
+    except FileNotFoundError as e:
         logger.error("File not found: %s", y_pred_path)
-        raise fe
-    except ParserError as pe:
+        raise e
+    except ParserError as e:
         logger.error("Error parsing data from %s", y_pred_path)
-        raise pe
+        raise e
     except Exception as e:
         logger.error("Unknown error reading data from %s", y_pred_path)
         raise e
@@ -169,9 +168,9 @@ def evaluate_wrapper(metrics: list,
     generated and saved to local files.
 
     Args:
-        metrics (`list`): List of metrics to be evaluated, choices are "confusion_matrix" 
+        metrics (`list`): List of metrics to be evaluated, choices are "confusion_matrix"
             and "classification_report".
-        metrics_output_dir (`str`): Path to the directory to store the metrics files. 
+        metrics_output_dir (`str`): Path to the directory to store the metrics files.
         test_path (`str`): Path to the test file saved in previous train-test-split.
         y_pred_folder_path (`str`): Path to the directory containing prediction files from
             previous training runs.
@@ -211,9 +210,6 @@ def evaluate_wrapper(metrics: list,
     # Read test data
     test = read_test_from_path(test_path)
 
-    # Define a target encoder
-    target_encoder = LabelEncoder()
-
     # Iterate through each of the 4 MBTI dimensions, get y_pred, and compare with y_test
     for col in ["I", "S", "F", "J"]:
         # Read y_pred from file
@@ -227,9 +223,6 @@ def evaluate_wrapper(metrics: list,
 
         # verify y_test and y_pred have the same length
         verify_test_and_pred(y_test_col, y_pred)
-
-        # vectorize corresponding target column in y_test
-        test_target_vector = target_encoder.fit_transform(y_test_col)
 
         # Save the metrics to a file
         metrics_file.write("\n--------------" + col + "=1-----------------\n")

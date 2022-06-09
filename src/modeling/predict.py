@@ -16,16 +16,16 @@ logger = logging.getLogger(__name__)
 class IncorrectNumberOfFilesError(Exception):
     """Definie a custom exception class for incorrect number of files in
     a folder"""
-    pass
+    pass  # pylint: disable=unnecessary-pass
 
 
 class IncorrectFilenameError(Exception):
     """Define a custom exception class for incorrect filename"""
-    pass
+    pass  # pylint: disable=unnecessary-pass
 
 
 def read_new_text(text_path: str) -> str:
-    """Read the data to be predicted from the given .csv file. 
+    """Read the data to be predicted from the given .csv file.
 
     Args:
         text_path (`str`): Path to the csv file
@@ -82,8 +82,8 @@ def validate_model_folder(model_file_folder: str) -> None:
         logger.error("Model folder should contain exactly 4 files, "
                      "each for 1 MBTI dimension: %s",
                      model_file_folder)
-        raise IncorrectNumberOfFilesError("Model folder should contain exactly 4 files. "
-                                          "%d detected" % len(model_files))
+        raise IncorrectNumberOfFilesError(
+            f"Model folder should contain exactly 4 files. {len(model_files)} detected")
 
     # Validate that each file is a pickle file and is named in the format of `logit_<col>=1.pkl`
     for model_file in model_files:
@@ -92,12 +92,12 @@ def validate_model_folder(model_file_folder: str) -> None:
             logger.error("Model file should be a pickle file: %s",
                          model_file)
             raise TypeError("Model file should be a pickle file. "
-                            "%s detected" % os.path.splitext(model_file)[-1])
+                            f"{os.path.splitext(model_file)[-1]} detected")
         if not re.match(r"logit_[ISFJ]=1.pkl", model_file):
             logger.error("Model file should be named in the format of `logit_<col>=1.pkl`, "
                          "where col is one of [I, S, F, J]: %s", model_file)
-            raise IncorrectFilenameError("Model filename %s is invalid. Supported format is "
-                                         "`logit_<col>=1.pkl`, where col is one of [I, S, F, J].", model_file)
+            raise IncorrectFilenameError(f"Model filename {model_file} is invalid. Supported format is "
+                                         "`logit_<col>=1.pkl`, where col is one of [I, S, F, J].")
 
 
 def read_model_from_path(model_file_path: str) -> LogisticRegression:
@@ -217,7 +217,7 @@ def predict_logit(model: LogisticRegression, new_text: str) -> Tuple[list, list]
 def save_ypred_to_files(y_pred_df: pd.DataFrame,
                         y_pred_filename: str,
                         y_pred_output_dir: str) -> None:
-    """Save the dataframe that contains prediction probabilities and classes to 
+    """Save the dataframe that contains prediction probabilities and classes to
     the given path.
 
     Args:
@@ -246,10 +246,10 @@ def save_ypred_to_files(y_pred_df: pd.DataFrame,
     output_path = os.path.join(y_pred_output_dir, y_pred_filename) + ".csv"
     try:
         y_pred_df.to_csv(output_path, index=False)
-    except PermissionError as pe:
+    except PermissionError as e:
         logger.error("Permission denied to write to file: %s",
                      output_path)
-        raise pe
+        raise e
     except Exception as e:
         logger.error("Unknown error writing to file: %s", output_path)
         raise e
@@ -309,10 +309,10 @@ def predict_wrapper(model_folder_path: str, new_text_path: str, vectorizer_path:
     if not is_string:
         try:
             posts = new_text[kwargs_predict["posts_colname"]].tolist()
-        except KeyError as ke:
+        except KeyError as e:
             logger.error("Errors reading posts column. Please check name of the target "
-                         "column in dataset matches with what's been defined in config: %s", ke)
-            raise ke
+                         "column in dataset matches with what's been defined in config: %s", e)
+            raise e
         else:
             new_text_vectorized = vectorizer.transform(posts).toarray()
     else:
