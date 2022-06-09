@@ -15,48 +15,8 @@ from sklearn.linear_model import LogisticRegression
 logger = logging.getLogger(__name__)
 
 
-# def get_posts_and_target(data: pd.DataFrame,
-#                          predictor_colnames: list,
-#                          target_colname: str) -> Tuple[pd.DataFrame, pd.Series]:
-#     """
-#     Get the predictor and target columns from the data.
-
-#     Args:
-#         data (:obj:`pandas.DataFrame`): featurized dataframe to train and test model on.
-#         predictor_colnames (`list`): Name of the predictor columns.
-#         target_column (`str`): Name of the target column.
-
-#     Returns:
-#         A tuple of pandas DataFrame and pandas Series, containing predictor
-#         columns and target column.
-
-#     Raises:
-#         KeyError: If the any of the predictor_colnames or target_colname are
-#             not found in the data.
-
-#     """
-#     # Get the feature columns
-#     try:
-#         feature_columns = data[predictor_colnames]
-#     except KeyError as e:
-#         logger.error(
-#             "At least one of the columns\
-#                  not found in data: %s", predictor_colnames)
-#         raise e
-
-#     # Get the target column
-#     try:
-#         target_column = data[target_colname]
-#     except KeyError as e:
-#         logger.error("Column not found in data: %s", target_colname)
-#         raise e
-
-#     return feature_columns, target_column
-
-
 def read_clean_data(clean_data_path: str) -> pd.DataFrame:
-    """
-    Read the cleaneddata.
+    """Read the cleaned data from local system.
 
     Args:
         clean_data_path (`str`): Path to the clean data.
@@ -68,7 +28,7 @@ def read_clean_data(clean_data_path: str) -> pd.DataFrame:
         FileNotFoundError: If the clean data is not found.
         ParserError: If the clean data is not in the correct format.
     """
-    # Read the clean data
+    # Read the clean data from given path
     try:
         data = pd.read_csv(clean_data_path)
     except FileNotFoundError as e:
@@ -84,8 +44,7 @@ def read_clean_data(clean_data_path: str) -> pd.DataFrame:
 
 
 def read_stopwords(stopwords_path: str) -> list:
-    """
-    Read the stopwords.
+    """Read the stopwords from the local system.
 
     Args:
         stopwords_path (`str`): Path to the stopwords.
@@ -94,9 +53,9 @@ def read_stopwords(stopwords_path: str) -> list:
         List of stopwords.
 
     Raises:
-        FileNotFoundError: If the stopwords are not found.
+        FileNotFoundError: If the stopwords file is not found.
     """
-    # Read the stopwords
+    # Read the stopwords from given path
     try:
         stopwords = pd.read_csv(stopwords_path, header=None)
     except FileNotFoundError as e:
@@ -111,17 +70,16 @@ def read_stopwords(stopwords_path: str) -> list:
 def split_data(data: pd.DataFrame,
                **kwargs_split: dict) \
         -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Split the data into training and test sets.
+    """Split the data into training and test sets.
 
     Args:
-        feature_columns (:obj:`pandas.DataFrame`): Dataframe of predictor columns
-        target_column (:obj:`pandas.Series`): Series of target column
-        **kwargs_split (`dict`): Dictionary `split_data` defined in the config file
+        data (:obj:`pandas.DataFrame`): Data to split.
+        kwargs_split (`dict`): Dictionary `split_data` defined in the config.yaml
+            - test_size (`float`): Percentage of data to use for testing.
+            - random_state (`int`): Random state for the split.
 
     Returns:
-        A tuple of pandas DataFrame and pandas Series, containing X_train,
-        X_test, y_train, and y_test.
+        A tuple of pandas DataFrame, containing the train and the test samples
 
     Raises:
         TypeError: Errors in specifying train_test_split parameters,
@@ -129,7 +87,9 @@ def split_data(data: pd.DataFrame,
         ValueError: Errors in specifying train_test_split parameters,
             such as invalid values
     """
-    # Validate train_test_split parameters
+    # Validate train_test_split parameters, if test_size is given as 0,
+    # set it to 0.000001 to avoid errors. This will still assign 1 record
+    # to test, which will be manually oved to the train set later.
     if kwargs_split["test_size"] == 0:
         logger.warning("Test size is 0. No test set will be generated. ")
         kwargs_split["test_size"] = 0.000001
@@ -160,27 +120,21 @@ def save_split_to_files(train: pd.DataFrame,
                         test: pd.DataFrame,
                         split_output_dir: str,
                         **kwargs_save_split: dict) -> None:
-    """
-    Save the training and test sets to files.
+    """Save the training and test sets to files.
 
     Args:
-        X_train (:obj:`pandas.DataFrame`): Training predictor columns.
-        X_test (:obj:`pandas.DataFrame`): Test predictor columns.
-        y_train (:obj:`pandas.Series`): Training target column.
-        y_test (:obj:`pandas.Series`): Test target column.
-        **kwargs_save_split (`dict`): Dictionary `save_split_to_files` defined
-            in the config file
-            - X_train_filename (`str`): Name of the training predictor file.
-            - X_test_filename (`str`): Name of the test predictor file.
-            - y_train_filename (`str`): Name of the training target file.
-            - y_test_filename (`str`): Name of the test target file.
-            - output_dir (`str`): Output directory to save the files.
+        train (:obj:`pandas.DataFrame`): Training set.
+        test (:obj:`pandas.DataFrame`): Test set.
+        split_output_dir (`str`): Path to save the train and test sets.
+        kwargs_save_split (`dict`): Dictionary `save_split_to_files` defined in the config.yaml
+            - train_filename (`str`): Name of the train file.
+            - test_filename (`str`): Name of the test file.
 
     Returns:
         None
 
     Raises:
-        IOError, OSError: If any of the output file is not accessible
+        IOError, OSError: raisied if any of the output file is not accessible
     """
     # Validate output_dir exists. If not, create a new directory at
     # output_dir.
@@ -207,31 +161,31 @@ def save_split_to_files(train: pd.DataFrame,
                 split_output_dir)
 
 
-def create_fit_vectorizer(train_posts: pd.Series, sw: list, **kwargs_tfidf_vec) -> TfidfVectorizer:
-    """
-    Define the TfidfVectorizer object.
+def create_fit_vectorizer(train_posts: pd.Series, sw: list,
+                          **kwargs_tfidf_vec) -> TfidfVectorizer:
+    """Define the TfidfVectorizer object and fit it to the training set.
 
     Args:
-        **kwargs_tfidf_vec (`dict`): Dictionary `define_tfidf_vectorizer` defined
-            in the config file
-            - max_features (`int`): Maximum number of features to keep.
-            - min_df (`int`): Minimum number of documents a word must appear in.
-            - max_df (`float`): Maximum number of documents a word can appear in.
-            - ngram_range (`tuple`): Range of ngrams to use.
+        train_posts (:obj:`pandas.Series`): Training set to fit the vectorizer on
+        sw (`list`): List of stopwords.
+        kwargs_tfidf_vec (`dict`): Dictionary `create_fit_vectorizer` defined in the config.yaml
+            - max_features (`int`): Maximum number of features to use.
 
     Returns:
         fitted TidfVectorizer object.
 
     Raises:
-        TypeError: If any of the parameters are not of the correct type.
-        ValueError: If any of the parameters are not of the correct value.
+        TypeError: If max_feature is not an integer.
+        ValueError: If max_feature is not positive.
     """
+
     logger.debug("Defining TfidfVectorizer object.")
-    # Validate parameters
+    # Validate parameters, max_features must be an integer
     if not isinstance(kwargs_tfidf_vec["max_features"], int):
         logger.error("max_features must be an integer.")
         raise TypeError("max_features must be an integer.")
 
+    # Validate parameters, max_features must be positive
     if kwargs_tfidf_vec["max_features"] < 1:
         logger.error("max_features must be greater than 0")
         raise ValueError("max_features must be greater than 0.")
@@ -260,24 +214,33 @@ def create_fit_vectorizer(train_posts: pd.Series, sw: list, **kwargs_tfidf_vec) 
 def train_logit(train_posts: np.ndarray,
                 train_target: np.ndarray,
                 **kwargs_logit) -> LogisticRegression:
-    """
-    Define the LogisticRegression object.
+    """Define the LogisticRegression object and fit it to the training set.
 
     Args:
         train_posts (:obj:`numpy.ndarray`): Training predictor columns.
         train_target (:obj:`numpy.ndarray`): Training target column.
+        kwargs_logit (`dict`): Dictionary `train_logit` defined in the config.yaml
+            - C (`float`): Inverse of regularization strength; must be a positive float.
 
     Returns:
         fitted LogisticRegression object.
 
     Raises:
-        ValueError: If any of the parameters are not of the correct value.
+        TypeError: 
+            - Errors in specifying LogisticRegression() parameters, such as 
+                unrecognized arguments
+            - if C is not a positive float
+        ValueError: Errors in specifying LogisticRegression() parameters,
+            such as invalid values 
     """
     logger.debug("Defining LogisticRegression object.")
-    # Validate parameters
+    # Validate parameters, C must be a positive float
     if kwargs_logit["C"] < 0:
         logger.warning("C must be greater than 0. Setting C to 0.1.")
         kwargs_logit["C"] = 0.1
+    if not isinstance(kwargs_logit["C"], float):
+        logger.error("C must be a float.")
+        raise TypeError("C must be a float.")
 
     # Define the LogisticRegression object
     try:
@@ -303,14 +266,12 @@ def train_logit(train_posts: np.ndarray,
 def save_model_to_file(logit: LogisticRegression,
                        model_output_filename: str,
                        model_output_dir: str) -> None:
-    """
-    Save the model object to a pickle file.
+    """Save the model object to a pickle file.
 
     Args:
-        rf (:obj:`LogisticRegression`):Logistic Regreession model to be saved.
-        model_output_dir (`str`): Output directory to save the model.
-        **kwargs_save_model (`dict`): Dictionary `save_model_to_file` defined
-            - model_filename (`str`): Name of the saved model file.
+        logit (:obj:`LogisticRegression`): fitted LogisticRegression object.
+        model_output_filename (`str`): Name of the model file to be saved.
+        model_output_dir (`str`): Path to save the model file.
 
     Returns:
         None
@@ -343,13 +304,12 @@ def save_model_to_file(logit: LogisticRegression,
 def save_vectorizer_to_file(vectorizer: TfidfVectorizer,
                             vectorizer_output_dir: str,
                             **kwargs_save_vectorizer: dict) -> None:
-    """
-    Save the vectorizer object to a pickle file.
+    """Save the vectorizer object to a pickle file.
 
     Args:
-        vectorizer (:obj:`TfidfVectorizer`): TfidfVectorizer object to be saved.
+        vectorizer (:obj:`TfidfVectorizer`): fitted TfidfVectorizer object to be saved.
         vectorizer_output_dir (`str`): Output directory to save the vectorizer.
-        **kwargs_save_vectorizer (`dict`): Dictionary `save_vectorizer_to_file` defined
+        kwargs_save_vectorizer (`dict`): Dictionary `save_vectorizer_to_file` defined in config.yaml
             - vectorizer_filename (`str`): Name of the saved vectorizer file.
 
     Returns:
@@ -387,6 +347,27 @@ def train_wrapper(clean_data_path: str,
                   vectorizer_output_dir: str,
                   split_output_dir: str,
                   **kwargs_train) -> None:
+    """Wrapper function for the training process.
+
+    Cleaned data is read from the specified path. It is then split into
+    training and test sets. The vectorizer is then fit to the training set, and 
+    the training set is transformed to be fed into the logistic model.
+    1 model is created for each MBTI dimension. So, there will be 4 models in
+    total that are saved in the specified path.
+
+    Args:
+        clean_data_path (`str`): Path to the cleaned data.
+        model_output_dir (`str`): Path to save the models.
+        vectorizer_output_dir (`str`): Path to save the vectorizer.
+        split_output_dir (`str`): Path to save the split data.
+        kwargs_train (`dict`): Dictionary `train` defined in config.yaml
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
 
     logger.info("Start train.py pipeline.")
     # read clean data from given path

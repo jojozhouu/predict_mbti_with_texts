@@ -2,7 +2,7 @@ import re
 import string
 import logging
 import os
-from typing import Tuple, Union
+from typing import Union
 
 import pandas as pd
 from pandas.errors import ParserError
@@ -18,7 +18,16 @@ wnl = WordNetLemmatizer()
 def check_dl_nltk_data(**kwargs_nltk_dl) -> None:
     """
     Check if the NLTK stopwords, wordnet, omw-1.4 and punkt are downloaded. 
-    If not, download it.
+    If not, download them.
+
+    Args:
+        kwargs_nltk_dl (`dict`): Dictionary of arguments for nltk.download().
+            - download_dir (`str`): Directory to download data to.
+    Returns:
+        None
+
+    Raises:
+        None
     """
     logger.info("Checking if NLTK stopwords is downloaded.")
 
@@ -69,19 +78,18 @@ def check_dl_nltk_data(**kwargs_nltk_dl) -> None:
 
 
 def read_raw_data(raw_data_path: str) -> pd.DataFrame:
-    """
-    Read raw data stored in local system, return a pandas DataFrame.
+    """Read raw data stored in the given path, return a pandas DataFrame.
 
     Args:
-        read_raw_data (`str`): Path to the raw data.
+        read_raw_data (`str`): Path to the raw data with two 
+            columns `type` and `posts`.
 
     Returns:
-        pandas DataFrame of raw data.
+        A pandas DataFrame containing raw data.
 
     Raises:
         FileNotFoundError: If the raw data file is not found.
         ParserError: If the raw data file is not in the correct format.
-        IOError, OSError: If the raw data file is accessible.
         TypeError: If the raw data does not end with .csv
 
     """
@@ -109,22 +117,33 @@ def read_raw_data(raw_data_path: str) -> pd.DataFrame:
 
 
 def verify_types(data: pd.DataFrame) -> pd.DataFrame:
-    """Verify that the type column only contains one of the 16 MBTI types
+    """Verify that the `type` column only contains one of the 16 MBTI types.
+
+    Args:
+        data (`pandas.DataFrame`): DataFrame to verify.
+
+    Returns:
+        pandas.DataFrame: DataFrame with verified MBTI types.
+
+    Raises:
+        ValueError: If the `type` column contains invalid MBTI types
     """
+
     logger.info("Verifying MBTI types in data.")
+    # Get unique MBTI type in the data and the 16 valid types
     type_in_data = data["type"].unique()
     possible_types = ["INTJ", "INTP", "ENTJ", "ENTP", "INFJ", "INFP",
                       "ENFJ", "ENFP", "ISTJ", "ISFJ", "ESTJ", "ESFJ",
                       "ISTP", "ISFP", "ESTP", "ESFP"]
 
-    # Check if train data only contains one of the 16 MBTI types
+    # Check if train data only contains one of the 16 MBTI types, if not, raise error
     check = all(x in possible_types for x in type_in_data)
     if not check:
         logger.error(
             "MBTI types in data contain invalid types. Please check data.")
         raise ValueError("MBTI types in data are not valid.")
 
-    # Check if train data have all possible types
+    # Check if train data have all possible types, if not, warn user
     if len(type_in_data) != len(possible_types):
         logger.warning("Not sufficient types in data! Results could be biased. "
                        "Data only have %s types", len(type_in_data))
@@ -135,15 +154,18 @@ def verify_types(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def uppercase_types(data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Convert the MBTI types to uppercase.
+    """Convert the `type` column to uppercase.
 
     Args:
         data (`pandas.DataFrame`): DataFrame to convert.
 
     Returns:
         pandas.DataFrame: DataFrame with MBTI types in uppercase.
+
+    Raises:
+        None
     """
+    # Convert type column to uppercase
     logger.info("Converting MBTI types to uppercase.")
     data["type"] = data["type"].str.upper()
 
@@ -156,8 +178,20 @@ def create_binary_target(data: pd.DataFrame) -> pd.DataFrame:
 
     For example, `INTJ` will be converted to 4 columns, with `I`=1, `S`=0, 
     `F`=0, and `J`=1. 
+
+    Args:
+        data (`pandas.DataFrame`): DataFrame to create binary target columns.
+
+    Returns:
+        A pandas DataFrame with binary target columns created
+
+    Raises:
+        None
     """
-    logger.info("Creating 4 columns of binary target.")
+
+    logger.debug("Creating 4 columns of binary target.")
+    # Create binary target columns, for example, `INTJ` will be converted to additional
+    # 4 columns, with `I`=1, `S`=0, `F`=0, and `J`=1.
     data["I"] = data["type"].apply(lambda x: 1 if "I" in x else 0)
     data["S"] = data["type"].apply(lambda x: 1 if "S" in x else 0)
     data["F"] = data["type"].apply(lambda x: 1 if "F" in x else 0)
@@ -168,31 +202,42 @@ def create_binary_target(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def define_stopwords() -> set:
-    """
-    Define stopwords.
+    """Define stopwords as the union of the stopwords in the NLTK wordnet and 
+    stopwords with punctuation removed.
+
+    Args:
+        None
 
     Returns:
         set: Set of stopwords.
+
+    Raises:
+        None
     """
     logger.debug("Defining stopwords.")
+    # Get stopwords from NLTK wordnet
     sw_reg = nltk.corpus.stopwords.words('english')
+
+    # Get stopwords from NLTK wordnet, but with punctuation removed
     sw_no_punc = re.sub('[' + re.escape(string.punctuation) + ']', '',
                         ' '.join(sw_reg)).split()
+
+    # Combine the two lists into a set
     sw = set(sw_reg + sw_no_punc)
+
     logger.debug("Successfully defined stopwords.")
 
     return sw
 
 
 def replace_url_to_link(txt: str) -> str:
-    """
-    Replace URLs with word `link`.
+    """Replace URLs with word `link`.
 
     Args:
         text (`str`): Text to replace URLs.
 
     Returns:
-        str: Text with URLs replaced.
+        The text with URLs replaced.
     """
     txt = re.sub(
         'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', "link", txt)
@@ -201,14 +246,13 @@ def replace_url_to_link(txt: str) -> str:
 
 
 def remove_punc(txt: str) -> str:
-    """
-    Remove punctuation.
+    """Remove punctuation.
 
     Args:
         text (`str`): Text to remove punctuation.
 
     Returns:
-        str: Text with punctuation removed.
+        Text with punctuation removed.
     """
     txt = re.sub('[' + re.escape(string.punctuation) + ']', '', txt)
 
@@ -216,15 +260,14 @@ def remove_punc(txt: str) -> str:
 
 
 def remove_stopwords(txt: str, sw: set) -> str:
-    """
-    Remove stopwords.
+    """Remove stopwords.
 
     Args:
         text (`str`): Text to remove stopwords.
         sw (`set`): Set of stopwords.
 
     Returns:
-        str: Text with stopwords removed.
+        Text with stopwords removed.
     """
     txt = ' '.join([w for w in txt if w not in sw])
 
@@ -232,15 +275,15 @@ def remove_stopwords(txt: str, sw: set) -> str:
 
 
 def lemmatize_all(word: str) -> str:
-    """
-    Lemmatize a word.
+    """Lemmatize a word.
 
     Args:
         word (`str`): Word to lemmatize.
 
     Returns:
-        str: Lemmatized word.
+        Lemmatized word.
     """
+    # lemmatize a word with adjective, verb, and noun speech tags
     word = wnl.lemmatize(word, 'a')
     word = wnl.lemmatize(word, 'v')
     word = wnl.lemmatize(word, 'n')
@@ -250,8 +293,7 @@ def lemmatize_all(word: str) -> str:
 def save_clean_data_to_file(data: pd.DataFrame,
                             clean_data_output_dir: str,
                             **kwargs_save_clean_data: dict) -> None:
-    """
-    Save cleaned data to a csv file at the specified path.
+    """Save cleaned data to a csv file at the specified path.
 
     Args:
         data_class (:obj:`pandas.DataFrame`): cleaned dataframe.
@@ -290,16 +332,16 @@ def save_clean_data_to_file(data: pd.DataFrame,
     logger.info("Saved cleaned data to file: %s", filepath)
 
 
-def save_stopwords_to_file(stopwords: list,
+def save_stopwords_to_file(stopwords: set,
                            **kwargs_save_stopwords: dict) -> None:
     """
     Save stopwords to a csv file at the specified path.
 
     Args:
-        stopwords (`list`): List of stopwords.
-        stopwords_output_dir (`str`): Folder to save the stopwords.
+        stopwords (`set`): set of stopwords.
         **kwargs_save_stopwords (`dict`): Dictionary `save_stopwords_to_file`
             defined in config.yaml
+            - stopwords_output_dir (`str`): Folder to save the stopwords.
             - stopwords_output_filename (`str`): Filename of the saved csv file.
 
     Returns:
@@ -339,18 +381,31 @@ def clean_wrapper(raw_data: str,
                   clean_data_output_dir: str,
                   is_new_data: bool,
                   save_output: bool,
-                  **kwargs_clean) -> pd.DataFrame:
-    """
-    Wrapper function for cleaning text.
+                  **kwargs_clean) -> Union[pd.DataFrame, str]:
+    """Wrapper function for cleaning text.
+
+    Raw data is read from specified path as either a string or a pandas
+    dataframe. It is then processed by replacing URLs with word `link`, removing
+    punctuation, removing stopwords, and lemmatizing. The cleaned data is then
+    saved to a csv file at the specified path.
 
     Args:
-        data (`pandas.DataFrame`): raw data to clean.
+        raw_data (`str`): either path to raw data file or the raw text to clean.
+        clean_data_output_dir (`str`): Folder to save the cleaned data.
+        is_new_data (`bool`): Whether the `raw_data` is the user input text, instead of
+            a raw data file.
+        save_output (`bool`): Whether to save the cleaned data to a csv file.
+        **kwargs_clean (`dict`): Dictionary `clean_wrapper` defined in config.yaml
+
     Returns:
-        str: Cleaned text.
+        A Pandas DataFrame of cleaned data, or the cleaned text.
+
+    Raises:
+        None
     """
     logger.info("Starting clean.py")
 
-    # Read raw data from local system, if it's a file
+    # Read raw data as either a dataframe or a string
     if is_new_data:
         data = raw_data
     else:

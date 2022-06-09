@@ -53,7 +53,7 @@ def create_db(engine_string: str) -> None:
     """
     # Connect to RDS
     try:
-        logger.info("Connecting to RDS...")
+        logger.info("Connecting to database...")
         engine = sqlalchemy.create_engine(engine_string)
     except (ProgrammingError, OperationalError, SQLAlchemyError) as e:
         logger.error(""" Could not create database. Please make sure VPN is
@@ -165,7 +165,7 @@ class PostManager:
             next(f)
             cnt = 0
             for line in f:
-                id, type, post = line.split(",", 2)
+                type, post = line.split(",", 1)
                 try:
                     self.session.add(
                         PostsWithLabel(type=type, posts=post))

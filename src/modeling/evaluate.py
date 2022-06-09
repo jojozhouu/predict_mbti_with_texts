@@ -3,60 +3,57 @@ import os
 
 import pandas as pd
 from pandas.errors import ParserError
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.preprocessing import LabelEncoder
 
 logger = logging.getLogger(__name__)
 
 
-def read_test_from_path(y_test_path: str) -> pd.Series:
-    """
-    Read the actual target classes of the test data from local file.
+def read_test_from_path(test_path: str) -> pd.DataFrame:
+    """Read the test data saved in previous train_test_split from given path
 
     Args:
-        y_test_path (`str`): Path to the y_test file saved in previous train_test_split.
+        test_path (`str`): Path to the test file
 
     Returns:
-        A pandas Series containing y_test.
+        A pandas DataFrame containing the test set.
 
     Raises:
         FileNotFoundError: If the file is not found.
         ParserError: If the file fails to parse.
-        IOError, OSError: If the file is not readable.
     """
     logger.info("Retrieving y_test from previous train-test-split from file.")
     # Load y_test saved in previous step
     try:
-        y_test = pd.read_csv(y_test_path)
-        logger.info("y_test loaded from %s.", y_test_path)
+        test = pd.read_csv(test_path)
+        logger.info("y_test loaded from %s.", test_path)
     except FileNotFoundError as fe:
-        logger.error("File not found: %s", y_test_path)
+        logger.error("File not found: %s", test_path)
         raise fe
     except ParserError as pe:
-        logger.error("Error parsing data from %s", y_test_path)
+        logger.error("Error parsing data from %s", test_path)
         raise pe
     except Exception as e:
-        logger.error("Unknown error reading data from %s", y_test_path)
+        logger.error("Unknown error reading data from %s", test_path)
         raise e
 
-    return y_test
+    return test
 
 
 def read_pred_from_path(y_pred_path: str) -> list:
-    """
-    Read the predicted classes of the test data from local file.
+    """Read the predicted classes of the test data from local file.
 
     Args:
-        y_pred_path (`str`): Path to the y_pred file saved in previous scoring.
+        y_pred_path (`str`): Path to the y_pred file saved in previous predictions.
 
     Returns:
-        A pandas Series containing y_pred.
+        A pandas Series containing predicted classes.
 
     Raises:
         FileNotFoundError: If the file is not found.
         ParserError: If the file fails to parse.
-        IOError, OSError: If the file is not readable.
     """
+
     logger.info("Retrieving y_pred from previous prediction.")
     # Load y_pred saved in previous step
     try:
@@ -77,32 +74,30 @@ def read_pred_from_path(y_pred_path: str) -> list:
     return y_pred_bin
 
 
-def verify_test_and_pred(y_test: pd.Series, y_pred: list) -> bool:
-    """
-    Verify if the test and prediction data are the same length.
+def verify_test_and_pred(y_test: pd.Series, y_pred: list) -> None:
+    """Verify if the test and prediction data have the same length.
 
     Args:
         y_test (`pd.Series`): Actual target classes.
         ypred_bin (`list`): Predicted target classes.
 
     Returns:
-        True if the test and prediction data are the same length.
+        None
 
     Raises:
-        None
+        ValueError: If the test and prediction data have different length.
     """
+
     logger.info("Verifying test and prediction data.")
     # Verify if the test and prediction data are the same length
     if len(y_test.index) != len(y_pred):
         logger.error("Test and prediction data are not of the same length.")
         raise ValueError(
             "Test and prediction data are not of the same length.")
-    # TODO , add more checks
 
 
 def confusion_mat(y_test: pd.Series, ypred_bin: list) -> pd.DataFrame:
-    """
-    Calculate the confusion matrix between the actual and predicted test target data.
+    """Calculate the confusion matrix between the actual and predicted test target data.
 
     Args:
         y_test (`pd.Series`): Actual target classes.
@@ -133,36 +128,8 @@ def confusion_mat(y_test: pd.Series, ypred_bin: list) -> pd.DataFrame:
     return confusion_df
 
 
-def accuracy(y_test: pd.Series, ypred_bin: list) -> float:
-    """
-    Calculate accuracy score.
-
-    Args:
-        y_test (`pd.Series`): Actual target classes.
-        ypred_bin (`list`): Predicted target classes.
-
-    Returns:
-        Float type accuracy score.
-
-    Raises:
-        None
-    """
-    logger.info("Calculating accuracy score.")
-    # Calculate the accuracy score
-    try:
-        acc = accuracy_score(y_test, ypred_bin)
-    except ValueError as e:
-        logger.warning(
-            "Error calculating accuracy score. Please check the formats of "
-            "y_test and y_pred. Skipped in metrics report. %s", e)
-        return "N/A"
-
-    return acc
-
-
 def class_report(y_test: pd.Series, ypred_bin: list) -> pd.DataFrame:
-    """
-    Generate the classification report.
+    """Generate the classification report.
 
     Args:
         y_test (`pd.Series`): Actual target classes.
@@ -192,27 +159,33 @@ def class_report(y_test: pd.Series, ypred_bin: list) -> pd.DataFrame:
 
 def evaluate_wrapper(metrics: list,
                      metrics_output_dir: str,
-                     y_test_path: str,
+                     test_path: str,
                      y_pred_folder_path: str,
                      **kwargs_evaluate) -> None:
-    """
-    Save all the evaluation metrics to a file.
+    """Wrapper function for model evaluations.
+
+    The test set from previous train-test-split and the predictions from previous training runs
+    are loaded. Evaluation metrics including confusion matrix and classifiation report are
+    generated and saved to local files.
 
     Args:
-        metrics (`list`): List of metrics to be calculated and saved
-        **kwargs_evaluate (`dict`): Dictionary `save_metrics_to_file`
-            defined in the config file.
-            - metrics_output_dir (`str`): Directory to save the metrics.
-            - metrics_output_filename (`str`): File name to save the metrics.
+        metrics (`list`): List of metrics to be evaluated, choices are "confusion_matrix" 
+            and "classification_report".
+        metrics_output_dir (`str`): Path to the directory to store the metrics files. 
+        test_path (`str`): Path to the test file saved in previous train-test-split.
+        y_pred_folder_path (`str`): Path to the directory containing prediction files from
+            previous training runs.
+        kwargs_evaluate (`dict`): Dictionary `evaluate_wrapper` defined in config.yaml
+            - metrics_output_filename (`str`): Name of the metrics output file.
+            - y_pred_filename_prefix (`str`): Prefix of the prediction file names.
 
     Returns:
         None
 
     Raises:
-        KeyError: If either `retrieve_ytest_ypred` or `save_metrics_to_file` is
-            not defined in the config file.
         IOError, OSError: Errors when creating the metrics file
     """
+
     logger.info("Evaluating the model.")
 
     # Validate ypred_output_dir exists. If not, create a new directory at
@@ -236,10 +209,7 @@ def evaluate_wrapper(metrics: list,
         raise e
 
     # Read test data
-    y_test = read_test_from_path(y_test_path)
-
-    # # Read vectorizer saved from train setp
-    # vectorizer = read_vectorizer_from_path(kwargs_evaluate["vectorizer_path"])
+    test = read_test_from_path(test_path)
 
     # Define a target encoder
     target_encoder = LabelEncoder()
@@ -253,7 +223,7 @@ def evaluate_wrapper(metrics: list,
         y_pred = read_pred_from_path(y_pred_path)
 
         # Specify test target column
-        y_test_col = y_test[col]
+        y_test_col = test[col]
 
         # verify y_test and y_pred have the same length
         verify_test_and_pred(y_test_col, y_pred)
@@ -263,13 +233,6 @@ def evaluate_wrapper(metrics: list,
 
         # Save the metrics to a file
         metrics_file.write("\n--------------" + col + "=1-----------------\n")
-        if "accuracy" in metrics:
-            acc = accuracy_score(y_test_col, y_pred)
-            try:
-                metrics_file.write(f"\nAccuracy: {acc}\n")
-            except TypeError:
-                pass
-
         if "confusion_matrix" in metrics:
             confusion_df = confusion_mat(y_test_col, y_pred)
             metrics_file.write("\nConfusion matrix:\n")

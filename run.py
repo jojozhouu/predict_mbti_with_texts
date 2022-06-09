@@ -3,7 +3,6 @@ import logging
 import logging.config
 import os.path
 import random
-
 import yaml
 
 from src.load_save_data_s3 import upload_file_to_s3, download_file_from_s3
@@ -67,7 +66,7 @@ if __name__ == '__main__':
                                      description="Interact with model, including cleaning data, training, \
         predicting, and evaluating the model")
     sp_model.add_argument("action",
-                          choices=["clean", "train",
+                          choices=["acquire", "clean", "train",
                                    "predict", "evaluate", "all"],
                           help="Which action to run? All means running the entire pipeline.")
 
@@ -132,7 +131,7 @@ if __name__ == '__main__':
     # Define arguments if action == evaluate
     sp_model.add_argument("--metrics",
                           choices=["confusion_matrix",
-                                   "accuracy", "classification_report"],
+                                   "classification_report"],
                           nargs="+",
                           default=["confusion_matrix",
                                    "accuracy", "classification_report"],
@@ -140,7 +139,7 @@ if __name__ == '__main__':
     sp_model.add_argument("--metrics_output_dir",
                           default="output/metrics",
                           help="Directory to store the metrics.")
-    sp_model.add_argument("--y_test_path",
+    sp_model.add_argument("--test_path",
                           default="output/train_test_split/test.csv",
                           help="Path to test set labels.")
     sp_model.add_argument("--y_pred_folder_path",
@@ -215,12 +214,16 @@ if __name__ == '__main__':
             logger.info("Set random seed to %d", config["random_seed"])
 
         # action = "all", start from downloading data from S3
-        if args.action in ["all"]:
+        if args.action in ["acquire", "all"]:
             # download raw data from S3 bucket, if raw data does not exist locally
             if not os.path.isfile(args.data_file_path):
-                print(args.data_file_path)
+                logger.info(
+                    "Raw data file not found in local, downloading from s3... %s", args.s3_bucket)
                 download_file_from_s3(
                     args.data_file_path, args.s3_bucket, args.s3_path)
+            else:
+                logger.info(
+                    "Raw data file already exists: %s. Download skipped.", args.data_file_path)
 
         # action = "clean", cleaning raw posts
         if args.action in ["clean", "all"]:
@@ -260,6 +263,6 @@ if __name__ == '__main__':
 
             logger.info("Evaluating the model")
             evaluate_wrapper(args.metrics,
-                             args.metrics_output_dir, args.y_test_path,
+                             args.metrics_output_dir, args.test_path,
                              args.y_pred_folder_path, **config_step)
             logger.info("Evaluate step finished")

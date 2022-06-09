@@ -2,6 +2,7 @@ import logging
 import os
 import pickle
 import re
+from typing import Tuple
 
 import pandas as pd
 from pandas.errors import ParserError
@@ -13,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class IncorrectNumberOfFilesError(Exception):
-    """Definie a custom exception class for incorrect number of files"""
+    """Definie a custom exception class for incorrect number of files in
+    a folder"""
     pass
 
 
@@ -23,19 +25,19 @@ class IncorrectFilenameError(Exception):
 
 
 def read_new_text(text_path: str) -> str:
-    """
-    Read the new text from the given .csv file returned from clean step.
+    """Read the data to be predicted from the given .csv file. 
 
     Args:
         text_path (`str`): Path to the csv file
 
     Returns:
-        The text.
+        pandas DataFrame of the data to be predicted.
 
     Raises:
         FileNotFoundError: If the text file does not exist.
         ParserError: If the text file fails to parse.
     """
+    # Read the new text from the given file
     try:
         logger.info("Reading new text from file: %s", text_path)
         text = pd.read_csv(text_path, encoding="ISO-8859-1")
@@ -52,18 +54,20 @@ def read_new_text(text_path: str) -> str:
 
 
 def validate_model_folder(model_file_folder: str) -> None:
-    """
-    Validate that the given model folder exists, contain exactly 4 files,
-    each of which is a pickle file and is named in the format of `logit_<col>=1.pkl`
+    """Validate that the given model folder exists, contains exactly 4 files,
+    each of which is a pickle file, and is named in the format of `logit_<col>=1.pkl`
 
     Args:
-        model_folder (`str`): The model folder.
+        model_folder (`str`): Path to the model folder.
 
     Returns:
         None
 
     Raises:
         FileNotFoundError: If the model folder does not exist.
+        IncorrectNumberOfFilesError: If the model folder doesn't contain exactly 4 files.
+        IncorrectFilenameError: If the model folder contains files with incorrect names.
+        TypeError: If the model folder contains files other than pickle files.
     """
     logger.info("Validating model folder: %s", model_file_folder)
     # Validate that the model folder exists
@@ -97,20 +101,20 @@ def validate_model_folder(model_file_folder: str) -> None:
 
 
 def read_model_from_path(model_file_path: str) -> LogisticRegression:
-    """
-    Read the model object from the pickle file.
+    """Read the model object from the pickle file.
 
     Args:
         model_path (`str`): Path to the pickle file containing the model object.
 
     Returns:
-        The model object.
+        The LogisticRegression model object.
 
     Raises:
         FileNotFoundError: If the model pickle file does not exist.
         EOFError, UnpicklingError: If the model pickle file fails to unpickle.
     """
 
+    # Load model objects from pickle file
     try:
         logger.info("Reading model from pickle file: %s", model_file_path)
         model_file = open(model_file_path, "rb")
@@ -132,12 +136,19 @@ def read_model_from_path(model_file_path: str) -> LogisticRegression:
 
 
 def read_vectorizer_from_path(vectorizer_path: str) -> TfidfVectorizer:
-    """
-    Read the vectorizer from local pickle file.
+    """Read the vectorizer from given path.
 
     Args:
         vectorizer_path (`str`): Path to the vectorizer file saved in previous train step.
+
+    Returns:
+        The TfidfVectorizer object.
+
+    Raises:
+        FileNotFoundError: If the vectorizer file does not exist.
+        EOFError, UnpicklingError: If the vectorizer file fails to unpickle.
     """
+
     # Load vectorizer saved in previous step
     try:
         logger.info("Reading vectorizer from pickle file: %s", vectorizer_path)
@@ -159,12 +170,11 @@ def read_vectorizer_from_path(vectorizer_path: str) -> TfidfVectorizer:
     return vectorizer
 
 
-def predict_logit(model: LogisticRegression, new_text: str) -> list:
-    """
-    Predict the class probabilities on the new text.
+def predict_logit(model: LogisticRegression, new_text: str) -> Tuple[list, list]:
+    """Predict the class probabilities and class predictions on the new text.
 
     Args:
-        model (`sklearn.linear_model.LogisticRegression`): The model object.
+        model (`sklearn.linear_model.LogisticRegression`): The LogisticRegression model object.
         new_text (`str`): The new text to predict.
 
     Returns:
@@ -172,8 +182,9 @@ def predict_logit(model: LogisticRegression, new_text: str) -> list:
 
     Raises:
         ValueError: Errors when predicting the model on the new_text,
-            such as sparse provided.
+            such as sparse matrix provided.
     """
+
     # Predict the probabilities of the new text belonging to each class
     try:
         logger.info("Predicting class probabilities on the new text: %s...")
@@ -203,20 +214,16 @@ def predict_logit(model: LogisticRegression, new_text: str) -> list:
     return y_pred_prob, y_pred_bin
 
 
-def save_ypred_to_files(y_pred_df: list,
+def save_ypred_to_files(y_pred_df: pd.DataFrame,
                         y_pred_filename: str,
                         y_pred_output_dir: str) -> None:
-    """
-    Save the predictions probabilities and classes to files.
+    """Save the dataframe that contains prediction probabilities and classes to 
+    the given path.
 
     Args:
-        ypred_proba (`list`): List of predicted probabilities.
-        ypred_bin (`list`): List of predicted classes.
-        ypred_output_dir (`str`): Directory to save the predictions.
-        **kwargs_save_ypred (`dict`): Dictionary `save_ypred_to_files`
-            defined in the config file.
-            - ypred_proba_filename (`str`): File name of the predictions probabilities.
-            - ypred_bin_filename (`str`): File name of the predictions classes.
+        y_pred_df (`pd.DataFrame`): The dataframe that contains prediction probabilities and classes.
+        y_pred_filename (`str`): The filename of file to save the dataframe.
+        y_pred_output_dir (`str`): The output directory of the file.
 
     Returns:
         None
@@ -252,28 +259,34 @@ def save_ypred_to_files(y_pred_df: list,
 
 
 def predict_wrapper(model_folder_path: str, new_text_path: str, vectorizer_path: str,
-                    y_pred_output_dir: str, is_string: bool, save_output: bool, **kwargs_predict) -> None:
-    """
-    Wrapper function to predict the class probabilities on the new text.
+                    y_pred_output_dir: str, is_string: bool, save_output: bool,
+                    **kwargs_predict) -> pd.DataFrame:
+    """Wrapper function to predict the class probabilities on the new text.
+
+    Saved model object, vectorizer object, and new texts are loaded from the given paths.
+    New texts could either be the test set saved from previous step, or a string from
+    user input. The new texts are then predicted on the model, and the prediction
+    probabilities and classes are saved to the given output directory.
 
     Args:
-        model_file_path (`str`): Path to the pickle file containing the model object.
-        new_text (`str`): The new text to predict.
-        ypred_output_dir (`str`): Directory to save the predictions.
-        **kwargs_predict (`dict`): Dictionary `predict_wrapper` defined in the config file.
-            - ypred_proba_filename (`str`): File name of the predictions probabilities.
-            - ypred_bin_filename (`str`): File name of the predictions classes.
+        model_folder_path (`str`): Path to the folder that contains the model pickle files.
+        new_text_path (`str`): Either path to the file that contains the new texts or a text string
+        vectorizer_path (`str`): Path to the vectorizer file saved in previous train step.
+        y_pred_output_dir (`str`): Path to save the prediction probabilities and classes.
+        is_string (`bool`): Whether the `new_text_path` is a string or a file path.
+        save_output (`bool`): Whether to save the prediction probabilities and classes to files.
+        kwargs_predict (`dict`): Dictionary `predict_wrapper` defined in config.yaml
+            - posts_column (`str`): Column name of posts in new texts dataframe
+            - y_pred_filename_prefix (`str`): Prefix of the filename of the predictions
 
     Returns:
-        A tuple of list, containing the predicted probabilities and predicted classes
+        A pandas DataFrame that contains the prediction probabilities for each dimension,
+        "I", "S", "F", "J".
 
     Raises:
-        FileNotFoundError: If the model pickle file does not exist.
-        EOFError, UnpicklingError: If the model pickle file fails to unpickle.
-        ValueError: Errors when predicting the model on the new_text,
-            such as sparse provided.
-        PermissionError: If the output directory is not writable.
+        KeyError: If the `posts_column` is not in the new texts dataframe.
     """
+
     logger.info("Starting predict.py pipeline")
 
     # Create a dataframe to store all 4 predictions separately for later evaluation
