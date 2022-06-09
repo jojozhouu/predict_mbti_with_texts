@@ -108,6 +108,48 @@ def read_raw_data(raw_data_path: str) -> pd.DataFrame:
     return raw_data
 
 
+def verify_types(data: pd.DataFrame) -> pd.DataFrame:
+    """Verify that the type column only contains one of the 16 MBTI types
+    """
+    logger.info("Verifying MBTI types in data.")
+    type_in_data = data["type"].unique()
+    possible_types = ["INTJ", "INTP", "ENTJ", "ENTP", "INFJ", "INFP",
+                      "ENFJ", "ENFP", "ISTJ", "ISFJ", "ESTJ", "ESFJ",
+                      "ISTP", "ISFP", "ESTP", "ESFP"]
+
+    # Check if train data only contains one of the 16 MBTI types
+    check = all(x in possible_types for x in type_in_data)
+    if not check:
+        logger.error(
+            "MBTI types in data contain invalid types. Please check data.")
+        raise ValueError("MBTI types in data are not valid.")
+
+    # Check if train data have all possible types
+    if len(type_in_data) != len(possible_types):
+        logger.warning("Not sufficient types in data! Results could be biased. "
+                       "Data only have %s types", len(type_in_data))
+    else:
+        logger.info("Type column in data has 16 types.")
+
+    return data
+
+
+def uppercase_types(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Convert the MBTI types to uppercase.
+
+    Args:
+        data (`pandas.DataFrame`): DataFrame to convert.
+
+    Returns:
+        pandas.DataFrame: DataFrame with MBTI types in uppercase.
+    """
+    logger.info("Converting MBTI types to uppercase.")
+    data["type"] = data["type"].str.upper()
+
+    return data
+
+
 def create_binary_target(data: pd.DataFrame) -> pd.DataFrame:
     """Convert the column of 4-dimension MBTI type to 4 columns of binary
     types. 
@@ -313,6 +355,8 @@ def clean_wrapper(raw_data: str,
         data = raw_data
     else:
         data = read_raw_data(raw_data)
+        # verify `types` are valid
+        data = verify_types(data)
 
     # Check if required nltk packages (e.g. stopwords) are installed.
     # If not, will install and re-import required packages
@@ -320,6 +364,7 @@ def clean_wrapper(raw_data: str,
 
     if not is_new_data:
         # Create binary target.
+        data = uppercase_types(data)
         data = create_binary_target(data)
         num_records = data.shape[0]
     else:
