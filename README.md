@@ -52,6 +52,8 @@ Before using the code, please make sure the following environmental variables ar
  
 Additionally, please make sure Northwestern VPN is connected.
 
+Model parameter configurations can be done in config/config.yaml
+
 ### Uploading and downloading data with S3
 1. Build a docker image called `final-project` for managing database connection, managing S3, and running the model pipeline. If the image has been built from previous step, skip this step.
 
