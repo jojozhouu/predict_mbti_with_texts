@@ -38,19 +38,22 @@ There are two types of sucess metrics.
 
 ## Instructions for using the code
 
-0. Before using the code, please make sure the following environmental variables are already sourced.
+Before using the code, please make sure the following environmental variables are already sourced.
     - SQLALCHEMY_DATABASE_URI
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY
     - S3_BUCKET
-   Additionally, please make sure Northwestern VPN is connected.
+ 
+Additionally, please make sure Northwestern VPN is connected.
 
 ### Uploading and downloading data to/from S3
 1. Build a docker image called `final-project` for managing database connection, managing S3, and running the model pipeline. If the image has been built from previous step, skip this step.
+
    ```bash
    docker build -f dockerfiles/Dockerfile -t final-project .
    ```
 2. To upload a local file to S3, run the following command. Uploads will be performed if the file does not exist in the S3 bucket specified.
+
    ```bash
    docker run -e S3_BUCKET -e \AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY --mount type=bind,source="$(pwd)"/,target=/app/ final-project run.py manage_s3 upload_data
    ```
@@ -127,5 +130,8 @@ There are two types of sucess metrics.
     ```bash
     docker build -f dockerfiles/Dockerfile.app -t final-project-app .
     ```
-2. To run the web app
+2. To run the web app, run the following command, and then enter address as "localhost:5000" in the browser. For example, on Windows it will be "http://127.0.0.1:5000/"
 
+    ```
+    docker run -e SQLALCHEMY_DATABASE_URI -p 5000:5000 final-project-app
+    ```
