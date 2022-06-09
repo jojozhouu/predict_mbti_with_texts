@@ -15,43 +15,43 @@ from sklearn.linear_model import LogisticRegression
 logger = logging.getLogger(__name__)
 
 
-def get_posts_and_target(data: pd.DataFrame,
-                         predictor_colnames: list,
-                         target_colname: str) -> Tuple[pd.DataFrame, pd.Series]:
-    """
-    Get the predictor and target columns from the data.
+# def get_posts_and_target(data: pd.DataFrame,
+#                          predictor_colnames: list,
+#                          target_colname: str) -> Tuple[pd.DataFrame, pd.Series]:
+#     """
+#     Get the predictor and target columns from the data.
 
-    Args:
-        data (:obj:`pandas.DataFrame`): featurized dataframe to train and test model on.
-        predictor_colnames (`list`): Name of the predictor columns.
-        target_column (`str`): Name of the target column.
+#     Args:
+#         data (:obj:`pandas.DataFrame`): featurized dataframe to train and test model on.
+#         predictor_colnames (`list`): Name of the predictor columns.
+#         target_column (`str`): Name of the target column.
 
-    Returns:
-        A tuple of pandas DataFrame and pandas Series, containing predictor
-        columns and target column.
+#     Returns:
+#         A tuple of pandas DataFrame and pandas Series, containing predictor
+#         columns and target column.
 
-    Raises:
-        KeyError: If the any of the predictor_colnames or target_colname are
-            not found in the data.
+#     Raises:
+#         KeyError: If the any of the predictor_colnames or target_colname are
+#             not found in the data.
 
-    """
-    # Get the feature columns
-    try:
-        feature_columns = data[predictor_colnames]
-    except KeyError as e:
-        logger.error(
-            "At least one of the columns\
-                 not found in data: %s", predictor_colnames)
-        raise e
+#     """
+#     # Get the feature columns
+#     try:
+#         feature_columns = data[predictor_colnames]
+#     except KeyError as e:
+#         logger.error(
+#             "At least one of the columns\
+#                  not found in data: %s", predictor_colnames)
+#         raise e
 
-    # Get the target column
-    try:
-        target_column = data[target_colname]
-    except KeyError as e:
-        logger.error("Column not found in data: %s", target_colname)
-        raise e
+#     # Get the target column
+#     try:
+#         target_column = data[target_colname]
+#     except KeyError as e:
+#         logger.error("Column not found in data: %s", target_colname)
+#         raise e
 
-    return feature_columns, target_column
+#     return feature_columns, target_column
 
 
 def read_clean_data(clean_data_path: str) -> pd.DataFrame:
@@ -131,8 +131,7 @@ def split_data(data: pd.DataFrame,
     """
     # Validate train_test_split parameters
     if kwargs_split["test_size"] == 0:
-        logger.warning("Test size is 0. No test set will be generated. "
-                       "To avoid errors, test_size set to 0.000001 and continue.")
+        logger.warning("Test size is 0. No test set will be generated. ")
         kwargs_split["test_size"] = 0.000001
 
     # Perform train_test_split
@@ -146,6 +145,11 @@ def split_data(data: pd.DataFrame,
         logger.error("Error splitting data: %s. Please check for errors like "
                      "invalid hyperparameter values ", e)
         raise e
+
+    # if test zie is 0, then move the 1 record in test to train
+    if kwargs_split["test_size"] == 0.000001:
+        train = pd.concat([train, test.iloc[0:1]])
+        test = pd.DataFrame()
 
     logger.info("Train-test split finished.")
 
@@ -229,7 +233,7 @@ def create_fit_vectorizer(train_posts: pd.Series, sw: list, **kwargs_tfidf_vec) 
         raise TypeError("max_features must be an integer.")
 
     if kwargs_tfidf_vec["max_features"] < 1:
-        logger.error("max_features must be greater than 0.")
+        logger.error("max_features must be greater than 0")
         raise ValueError("max_features must be greater than 0.")
 
     # Define the TfidfVectorizer object
@@ -267,15 +271,10 @@ def train_logit(train_posts: np.ndarray,
         fitted LogisticRegression object.
 
     Raises:
-        TypeError: If any of the parameters are not of the correct type.
         ValueError: If any of the parameters are not of the correct value.
     """
     logger.debug("Defining LogisticRegression object.")
     # Validate parameters
-    if not isinstance(kwargs_logit["C"], float):
-        logger.error("C must be a float.")
-        raise TypeError("C must be a float.")
-
     if kwargs_logit["C"] < 0:
         logger.warning("C must be greater than 0. Setting C to 0.1.")
         kwargs_logit["C"] = 0.1
