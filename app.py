@@ -1,16 +1,10 @@
 import logging.config
-import os
-import sqlite3
-import traceback
 
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_session import Session
-from config.flaskconfig import SECRET_KEY, SESSION_TYPE
 
 from src.modeling import clean, predict
-from src import manage_rds_db
-
-# For setting up the Flask-SQLAlchemy database session
+import config.flaskconfig as config
 from src.manage_rds_db import PostManager
 
 # Initialize the Flask application
@@ -48,19 +42,6 @@ VECTORIZER_PATH = app.config["VECTORIZER_PATH"]
 
 # Retrieve the path to the nltk packages
 NLTK_DATA_PATH = app.config["NLTK_DATA_PATH"]
-
-# Specify paths to output clean data and stopwords
-# CLEAN_DATA_PATH = app.config["CLEAN_DATA_PATH"]
-# CLEAN_DATA_FILENAME = app.config["CLEAN_DATA_FILENAME"]
-# STOPWORDS_PATH = app.config["STOPWORDS_PATH"]
-# STOPWORDS_FILENAME = app.config["STOPWORDS_FILENAME"]
-
-# # Retrieve S3 path to save clean data to, if SAVE_OUTPUT_TO_S3 is True
-# SAVE_OUTPUT_TO_S3 = app.config["SAVE_OUTPUT_TO_S3"]
-# S3_PATH = app.config["S3_PATH"]
-# CLEAN_DATA_PATH = app.config["CLEAN_DATA_PATH"]
-
-# S3 path to save clean data to
 
 
 @app.route('/')
@@ -124,7 +105,12 @@ def show_result():
                      "Consider generating a new vectorizer.  %s", e)
 
     # Retrieve prediction results and send to template for display
-    result_I = pred_result["I"].values[0]
+    try:
+        result_I = pred_result["I"].values[0]
+    except UnboundLocalError as e:
+        logger.error(
+            "Failed to detect prediction result. Maybe vectorizer is not successfully generated. %s", e)
+        return render_template('error.html')
     result_S = pred_result["S"].values[0]
     result_F = pred_result["F"].values[0]
     result_J = pred_result["J"].values[0]
