@@ -5,6 +5,8 @@ by Qingyang "Jojo" Zhou @jojozhouu
 ## Table of Contents
 
 - [Project Charter](#Project-Charter)
+- [Instructions for using the code](#Instructions-for-using-the-code)
+  - [Uploading and downloading data to/from S3](#Uploading-and-downloading-data-to/from-S3)
 
 ## Project Charter
 
