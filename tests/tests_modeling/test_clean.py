@@ -1,8 +1,9 @@
 import os
 import pandas as pd
 import pytest
+import nltk
 
-from src.modeling.clean import create_binary_target, define_stopwords, remove_punc, remove_stopwords, replace_url_to_link, uppercase_types, verify_types
+from src.modeling.clean import check_dl_nltk_data, create_binary_target, define_stopwords, remove_punc, remove_stopwords, replace_url_to_link, uppercase_types, verify_types
 
 raw_input = "Test input. With LINKS 'https://www.google.com/', another \
     link https://planitpurple.northwestern.edu/. different word form: go, goes, \
@@ -23,6 +24,8 @@ raw_invalid = [["NOT A TYPE", "post 1 post 1 post 1"],
                ["ENFP", "post 2 post 2 post 2"],
                ["NOT A TYPE EITHER", "post 3 post 3 post 3"],
                ["ENTP", "post 4 post 4 post 4"]]
+
+kwargs_nltk_dl = {"download_dir": "data/nltk"}
 
 
 def test_replace_url() -> None:
@@ -69,6 +72,8 @@ def test_remove_stopwords() -> None:
     Test whether remove_stopwords function removes stopwords from text.
     Test passed if no error raised
     """
+    # download nltk stopwords first
+    check_dl_nltk_data(**kwargs_nltk_dl)
     sw = define_stopwords()
     cleaned_text = remove_stopwords(raw_input, sw)
     true_text = "T e   n p u .   W h   L I N K S   ' h p : / / w w w . g g l e . c / ' ,   "\

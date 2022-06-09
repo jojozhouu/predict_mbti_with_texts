@@ -4,9 +4,9 @@ import pandas as pd
 import pytest
 from src.modeling.predict import IncorrectFilenameError, IncorrectNumberOfFilesError, read_model_from_path, read_vectorizer_from_path, validate_model_folder
 
-model_folder_valid = "tests/folder_valid"
-model_folder_wrong_file_name = "tests/folder_wrong_file_name"
-model_folder_wrong_number_of_files = "tests/folder_wrong_number"
+model_folder_valid = "tests/tests_modeling/folder_valid"
+model_folder_wrong_file_name = "tests/tests_modeling/folder_wrong_file_name"
+model_folder_wrong_number_of_files = "tests/tests_modeling/folder_wrong_number"
 
 new_text = "test test test test hahaha lol lol yea yeah yay happy no"
 model_path_real = "output/model/logit_I=1.pkl"
