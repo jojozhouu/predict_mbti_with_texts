@@ -1,4 +1,4 @@
-# Identify MBTI Personality Type Based on Speech Texts
+# Identify MBTI Personality Type Based on Texts
 
 by Qingyang "Jojo" Zhou @jojozhouu
 
